@@ -1,5 +1,5 @@
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter/dist/esm/prism'
-import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const EXT_LANG = {
   js: 'javascript',

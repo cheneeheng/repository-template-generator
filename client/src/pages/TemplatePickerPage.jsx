@@ -14,14 +14,14 @@ const FALLBACK = [
 ]
 
 export default function TemplatePickerPage() {
-  const [templates, setTemplates] = useState([])
+  const [templates, setTemplates] = useState({ templates: [] })
   const setSelectedTemplate = useStore((s) => s.setSelectedTemplate)
   const navigate = useNavigate()
 
   useEffect(() => {
     fetchTemplates()
       .then(setTemplates)
-      .catch(() => setTemplates(FALLBACK))
+      .catch(() => setTemplates({ templates: FALLBACK }))
   }, [])
 
   function handleSelect(template) {
@@ -32,7 +32,7 @@ export default function TemplatePickerPage() {
   return (
     <div style={{ padding: '2rem' }}>
       <h1>Choose a Template</h1>
-      <TemplateGrid templates={templates} onSelect={handleSelect} />
+      <TemplateGrid templates={templates.templates} onSelect={handleSelect} />
     </div>
   )
 }
