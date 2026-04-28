@@ -1,0 +1,6 @@
+{
+  "id": "react-express-postgres",
+  "label": "React + Express + PostgreSQL",
+  "description": "Full-stack web app with a React frontend, Express REST API, and PostgreSQL database. Includes Docker Compose for local dev and a GitHub Actions CI workflow.",
+  "tags": ["react", "express", "postgres", "docker", "gh-actions"]
+}
