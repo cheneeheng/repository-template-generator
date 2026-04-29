@@ -79,6 +79,51 @@ Autonomous Mode decisions for this project.
 
 ---
 
+### Entry 007
+
+**Type:** Decision
+**Mode:** Interactive
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_02 implementation
+
+**Context:** ITER_02 spec shows `PORT=3000` in `server/.env.example` and nginx proxying to `server:3000`. The existing local `server/.env` and `server/index.js` default use port 3001. Changing the Vite proxy to 3000 (as the plan implies) breaks local dev until the developer updates their `.env`.
+**Decision / Action:** Updated `server/.env.example` to `PORT=3000`, updated the Vite proxy target to `http://localhost:3000`, and added `PORT: 3000` as an explicit override in the docker-compose `environment` block (not relying solely on `env_file`).
+**Rationale:** The docker-compose must match the nginx proxy config (both must agree on 3000). The `PORT: 3000` environment override ensures the container ignores whatever value is in the local `.env`, making the Docker path robust. The local `.env` is not checked in and needs a one-time manual update.
+**Impact / Risk:** Low. Local dev breaks if the developer runs `npm run dev --prefix server` without updating their `.env`. Documented in the PR summary.
+**Outcome:** Applied in `docker-compose.yml`, `server/.env.example`, `client/vite.config.js`.
+
+---
+
+### Entry 008
+
+**Type:** Decision
+**Mode:** Interactive
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_02 implementation
+
+**Context:** ITER_02 §05 specifies CSS class-based responsive layout (`.template-grid`, `.preview-layout`, etc.). The existing codebase uses exclusively inline styles. No CSS files or modules existed in the project.
+**Decision / Action:** Added plain CSS files imported by each component (`Shell.css`, `TemplateGrid.css`, `PreviewPage.css`) rather than CSS modules or a CSS-in-JS approach.
+**Rationale:** Vite supports plain CSS imports natively. The plan's code samples use plain class selectors. CSS modules would require renaming every class reference to `styles.foo`; CSS-in-JS would add a dependency. Plain CSS is the smallest delta from the spec snippets.
+**Impact / Risk:** Low. Class names are not scoped — a naming collision could occur if future components use the same class names. BEM naming (already used in Shell) mitigates this.
+**Outcome:** Applied in `client/src/components/Shell.css`, `client/src/components/TemplateGrid.css`, `client/src/pages/PreviewPage.css`.
+
+---
+
+### Entry 009
+
+**Type:** Decision
+**Mode:** Interactive
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_02 implementation
+
+**Context:** ITER_02 §05 specifies Shell wraps every page and provides a centred content column with `max-width: 1100px` and padding. All four pages previously had `style={{ padding: '2rem' }}` on their outermost div, which would double-pad when nested inside `shell__content`.
+**Decision / Action:** Removed `padding: '2rem'` from the outer div of all four page components. ConfigurePage's `maxWidth: '600px'` was updated to `560px` per the spec.
+**Rationale:** Shell owns the layout shell — pages should not re-impose padding. Leaving both would create 4rem of total padding on desktop.
+**Impact / Risk:** Low. No visual regression on existing content; Shell padding is equivalent.
+**Outcome:** Applied in all four page components.
+
+---
+
 ### Entry 006
 
 **Type:** Decision
