@@ -1,0 +1,6 @@
+{
+  "id": "ts-express-api",
+  "label": "TypeScript Express API",
+  "description": "TypeScript REST API with Express, Zod for request validation, Jest for testing, and a GitHub Actions CI workflow. Zero-config tsconfig targeting Node 20.",
+  "tags": ["typescript", "express", "jest", "zod", "gh-actions"]
+}

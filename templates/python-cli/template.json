@@ -1,0 +1,6 @@
+{
+  "id": "python-cli",
+  "label": "Python CLI Tool",
+  "description": "Python CLI application using Click, managed by uv. Includes pytest with coverage, a src-layout package structure, and a GitHub Actions CI workflow.",
+  "tags": ["python", "cli", "click", "pytest", "uv", "gh-actions"]
+}

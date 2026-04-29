@@ -1,0 +1,28 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://app:secret@db:5432/{{PROJECT_NAME}}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: "{{PROJECT_NAME}}"
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d {{PROJECT_NAME}}"]
+      interval: 5s
+      retries: 5
+
+volumes:
+  db_data:
