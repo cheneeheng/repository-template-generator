@@ -1,43 +1,26 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useStore from '../store.js'
-import { generateProject } from '../api.js'
 
 export default function ConfigurePage() {
   const navigate = useNavigate()
   const selectedTemplate = useStore((s) => s.selectedTemplate)
   const setProjectConfig = useStore((s) => s.setProjectConfig)
-  const setFileTree = useStore((s) => s.setFileTree)
 
   const [projectName, setProjectName] = useState('')
   const [description, setDescription] = useState('')
   const [provider, setProvider] = useState('github')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!selectedTemplate) navigate('/')
   }, [selectedTemplate, navigate])
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault()
-    setLoading(true)
-    setError(null)
-    const config = { projectName, description, provider }
-    setProjectConfig(config)
-    try {
-      const fileTree = await generateProject({
-        templateId: selectedTemplate.id,
-        projectName,
-        description,
-      })
-      setFileTree(fileTree)
-      navigate('/preview')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+    setSubmitting(true)
+    setProjectConfig({ projectName, description, provider })
+    navigate('/preview')
   }
 
   if (!selectedTemplate) return null
@@ -82,9 +65,8 @@ export default function ConfigurePage() {
             </label>
           ))}
         </div>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <button type="submit" disabled={loading} style={{ padding: '0.5rem 1.5rem' }}>
-          {loading ? 'Generating...' : 'Generate'}
+        <button type="submit" disabled={submitting} style={{ padding: '0.5rem 1.5rem' }}>
+          {submitting ? 'Starting...' : 'Generate'}
         </button>
       </form>
     </div>

@@ -1,0 +1,6 @@
+{
+  "id": "fastapi-postgres",
+  "label": "FastAPI + PostgreSQL",
+  "description": "Python async REST API with FastAPI, SQLAlchemy (async), and PostgreSQL. Includes Alembic migrations, Docker Compose for local dev, and a GitHub Actions CI workflow.",
+  "tags": ["python", "fastapi", "postgres", "docker", "gh-actions", "sqlalchemy"]
+}
