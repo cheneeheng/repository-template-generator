@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import TemplateCard from './TemplateCard.jsx'
+import './TemplateGrid.css'
 
 export default function TemplateGrid({ templates, onSelect }) {
   const [activeTag, setActiveTag] = useState(null)
@@ -27,7 +28,7 @@ export default function TemplateGrid({ templates, onSelect }) {
           </button>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+      <div className="template-grid">
         {visible.map((t) => (
           <TemplateCard key={t.id} template={t} onSelect={onSelect} />
         ))}

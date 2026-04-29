@@ -26,7 +26,7 @@ export default function ConfigurePage() {
   if (!selectedTemplate) return null
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '600px' }}>
+    <div style={{ maxWidth: '560px' }}>
       <h1>Configure Project</h1>
       <p style={{ color: '#666' }}>Template: {selectedTemplate.label}</p>
       <form onSubmit={handleSubmit}>

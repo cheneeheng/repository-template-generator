@@ -126,7 +126,7 @@ export default function ExportPage() {
   const isZipOnly = projectConfig?.provider === 'zip'
 
   return (
-    <div style={{ padding: '2rem' }}>
+    <div>
       <h1>Export</h1>
       <DownloadZipButton fileTree={fileTree} onError={setError} />
       {!isZipOnly && (

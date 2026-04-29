@@ -5,6 +5,7 @@ import FileTree from '../components/FileTree.jsx'
 import FileViewer from '../components/FileViewer.jsx'
 import { ErrorToast } from '../components/ErrorToast.jsx'
 import { streamGenerate } from '../lib/streamGenerate.js'
+import './PreviewPage.css'
 
 export default function PreviewPage() {
   const navigate = useNavigate()
@@ -71,7 +72,7 @@ export default function PreviewPage() {
 
   if (status === 'streaming') {
     return (
-      <div style={{ padding: '2rem' }}>
+      <div>
         <h1>Generating...</h1>
         <div style={{ marginBottom: '1rem' }}>
           <div
@@ -114,7 +115,7 @@ export default function PreviewPage() {
 
   if (status === 'error') {
     return (
-      <div style={{ padding: '2rem' }}>
+      <div>
         <h1>Generation Failed</h1>
         <p style={{ color: '#c0392b' }}>{error}</p>
         <button onClick={() => navigate('/configure')} style={{ padding: '0.5rem 1.5rem' }}>
@@ -126,13 +127,13 @@ export default function PreviewPage() {
 
   // done
   return (
-    <div style={{ padding: '2rem' }}>
+    <div>
       <h1>Preview</h1>
-      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
-        <div style={{ width: '240px', flexShrink: 0 }}>
+      <div className="preview-layout">
+        <div className="preview-layout__tree">
           <FileTree files={fileTree} onSelect={setActiveFile} activeFile={activeFile} />
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="preview-layout__viewer">
           <FileViewer file={activeFile} />
         </div>
       </div>
