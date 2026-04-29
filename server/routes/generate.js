@@ -8,7 +8,7 @@ const router = Router();
 const generateSchema = z.object({
   templateId: z.string().min(1),
   projectName: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
-  description: z.string().max(500),
+  description: z.string().max(500).optional().default(''),
 });
 
 router.post('/', async (req, res) => {
@@ -20,9 +20,15 @@ router.post('/', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  const fileTree = await llm.customiseStreaming(baseFiles, projectName, description, res);
-
-  res.write('data: ' + JSON.stringify({ type: 'done', fileTree }) + '\n\n');
+  try {
+    const fileTree = await llm.customiseStreaming(baseFiles, projectName, description, res);
+    res.write('data: ' + JSON.stringify({ type: 'done', fileTree }) + '\n\n');
+  } catch (err) {
+    const message = err.status === 401
+      ? 'Invalid or missing API key'
+      : (err.message ?? 'LLM error');
+    res.write('data: ' + JSON.stringify({ type: 'error', message }) + '\n\n');
+  }
   res.end();
 });
 

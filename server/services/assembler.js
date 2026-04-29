@@ -12,7 +12,14 @@ const MAX_TEMPLATE_CHARS = parseInt(process.env.MAX_TEMPLATE_CHARS ?? '200000', 
 
 export async function load(templateId) {
   const templatePath = path.join(TEMPLATES_DIR, templateId);
-  const allFiles = await fs.readdir(templatePath, { recursive: true });
+
+  let allFiles;
+  try {
+    allFiles = await fs.readdir(templatePath, { recursive: true });
+  } catch (err) {
+    if (err.code === 'ENOENT') throw createError(404, `Template "${templateId}" not found`);
+    throw err;
+  }
 
   const results = await Promise.all(
     allFiles.map(async relPath => {

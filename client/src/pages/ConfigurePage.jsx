@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useStore from '../store.js'
+import { ErrorToast } from '../components/ErrorToast.jsx'
 
 export default function ConfigurePage() {
   const navigate = useNavigate()
@@ -10,6 +11,8 @@ export default function ConfigurePage() {
   const [projectName, setProjectName] = useState('')
   const [description, setDescription] = useState('')
   const [provider, setProvider] = useState('github')
+  const [error, setError] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!selectedTemplate) navigate('/')
@@ -17,6 +20,7 @@ export default function ConfigurePage() {
 
   function handleSubmit(e) {
     e.preventDefault()
+    setSubmitting(true)
     setProjectConfig({ projectName, description, provider })
     navigate('/preview')
   }
@@ -63,10 +67,11 @@ export default function ConfigurePage() {
             </label>
           ))}
         </div>
-        <button type="submit" style={{ padding: '0.5rem 1.5rem' }}>
-          Generate
+        <button type="submit" disabled={submitting} style={{ padding: '0.5rem 1.5rem' }}>
+          {submitting ? 'Starting...' : 'Generate'}
         </button>
       </form>
+      <ErrorToast message={error} onDismiss={() => setError(null)} />
     </div>
   )
 }
