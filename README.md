@@ -16,7 +16,7 @@ templates/                            — template definitions (template.json pe
 |--------|------|-------------|
 | GET | `/api/health` | Liveness check |
 | GET | `/api/templates` | List available templates |
-| POST | `/api/generate` | Generate a customised template via Claude |
+| POST | `/api/generate` | Stream a customised template via Claude (SSE / `text/event-stream`) |
 | GET | `/api/export/:id` | Download generated template as a zip |
 
 ## Getting started
@@ -56,6 +56,7 @@ Open `http://localhost:5173`.
 | `ANTHROPIC_API_KEY` | — | Required. Anthropic API key. |
 | `PORT` | `3001` | Server port. |
 | `TEMPLATES_DIR` | `../templates` | Path to template definitions. |
+| `MAX_TEMPLATE_CHARS` | `200000` | Max total chars of template files sent to the LLM (~50k tokens). Templates over this limit return 422. |
 
 ## Adding a template
 
@@ -81,3 +82,6 @@ Uses `claude-sonnet-4-6` via the Anthropic SDK. Swap the model string in `server
 | ID | Stack |
 |----|-------|
 | `react-express-postgres` | React + Express + PostgreSQL + Docker Compose + GitHub Actions CI |
+| `fastapi-postgres` | FastAPI + PostgreSQL |
+| `python-cli` | Python CLI (Click / Typer) |
+| `ts-express-api` | TypeScript + Express REST API |

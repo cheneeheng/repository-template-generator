@@ -23,6 +23,7 @@ export async function streamGenerate({ templateId, projectName, description }, c
   }
 
   const reader = response.body.getReader();
+  callbacks.onReader?.(reader);
   const decoder = new TextDecoder();
   let buffer = '';
 
@@ -47,6 +48,4 @@ export async function streamGenerate({ templateId, projectName, description }, c
   } catch (err) {
     callbacks.onError?.(err.message ?? 'Stream read error');
   }
-
-  return reader;
 }

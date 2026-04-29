@@ -13,6 +13,8 @@ export default function PreviewPage() {
   const setFileTree = useStore((s) => s.setFileTree)
 
   // status: 'streaming' | 'done' | 'error'
+  // Note: ITER_01 spec includes an 'idle' state with a Generate button, but
+  // ConfigurePage owns the form + navigation trigger, so streaming auto-starts here.
   const [status, setStatus] = useState('streaming')
   const [tokenCount, setTokenCount] = useState(0)
   const [completedPaths, setCompletedPaths] = useState([])
@@ -21,6 +23,7 @@ export default function PreviewPage() {
   const [error, setError] = useState(null)
 
   const started = useRef(false)
+  const readerRef = useRef(null)
 
   useEffect(() => {
     if (!selectedTemplate || !projectConfig) {
@@ -39,6 +42,9 @@ export default function PreviewPage() {
         description: projectConfig.description,
       },
       {
+        onReader(reader) {
+          readerRef.current = reader
+        },
         onDelta(chunk) {
           setTokenCount((n) => n + chunk.length)
         },
@@ -57,6 +63,10 @@ export default function PreviewPage() {
         },
       }
     )
+
+    return () => {
+      readerRef.current?.cancel()
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (status === 'streaming') {

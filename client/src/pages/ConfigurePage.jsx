@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useStore from '../store.js'
-import { ErrorToast } from '../components/ErrorToast.jsx'
 
 export default function ConfigurePage() {
   const navigate = useNavigate()
@@ -11,7 +10,6 @@ export default function ConfigurePage() {
   const [projectName, setProjectName] = useState('')
   const [description, setDescription] = useState('')
   const [provider, setProvider] = useState('github')
-  const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -71,7 +69,6 @@ export default function ConfigurePage() {
           {submitting ? 'Starting...' : 'Generate'}
         </button>
       </form>
-      <ErrorToast message={error} onDismiss={() => setError(null)} />
     </div>
   )
 }
