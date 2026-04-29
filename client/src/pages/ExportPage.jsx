@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useStore from '../store.js'
 import { exportZip, exportRepo } from '../api.js'
+import { ErrorToast } from '../components/ErrorToast.jsx'
 
-function DownloadZipButton({ fileTree }) {
+function DownloadZipButton({ fileTree, onError }) {
   const [loading, setLoading] = useState(false)
 
   async function handleClick() {
@@ -17,6 +18,8 @@ function DownloadZipButton({ fileTree }) {
       a.download = 'project.zip'
       a.click()
       URL.revokeObjectURL(url)
+    } catch (err) {
+      onError(err.message ?? 'Failed to export ZIP')
     } finally {
       setLoading(false)
     }
@@ -29,18 +32,16 @@ function DownloadZipButton({ fileTree }) {
   )
 }
 
-function RepoCreationForm({ fileTree, projectConfig }) {
+function RepoCreationForm({ fileTree, projectConfig, onError }) {
   const [token, setToken] = useState('')
   const [owner, setOwner] = useState('')
   const [repoName, setRepoName] = useState('')
   const [loading, setLoading] = useState(false)
   const [repoUrl, setRepoUrl] = useState(null)
-  const [error, setError] = useState(null)
 
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
-    setError(null)
     try {
       const result = await exportRepo({
         fileTree,
@@ -52,7 +53,7 @@ function RepoCreationForm({ fileTree, projectConfig }) {
       })
       setRepoUrl(result.repoUrl)
     } catch (err) {
-      setError(err.message)
+      onError(err.message ?? 'Failed to create repository')
     } finally {
       setLoading(false)
     }
@@ -95,7 +96,6 @@ function RepoCreationForm({ fileTree, projectConfig }) {
           style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
         />
       </div>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
       <button type="submit" disabled={loading} style={{ padding: '0.5rem 1.5rem' }}>
         {loading ? 'Creating...' : 'Create Repository'}
       </button>
@@ -115,6 +115,7 @@ export default function ExportPage() {
   const navigate = useNavigate()
   const fileTree = useStore((s) => s.fileTree)
   const projectConfig = useStore((s) => s.projectConfig)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!fileTree) navigate('/')
@@ -127,8 +128,11 @@ export default function ExportPage() {
   return (
     <div style={{ padding: '2rem' }}>
       <h1>Export</h1>
-      <DownloadZipButton fileTree={fileTree} />
-      {!isZipOnly && <RepoCreationForm fileTree={fileTree} projectConfig={projectConfig} />}
+      <DownloadZipButton fileTree={fileTree} onError={setError} />
+      {!isZipOnly && (
+        <RepoCreationForm fileTree={fileTree} projectConfig={projectConfig} onError={setError} />
+      )}
+      <ErrorToast message={error} onDismiss={() => setError(null)} />
     </div>
   )
 }

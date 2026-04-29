@@ -1,11 +1,14 @@
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
+import createError from 'http-errors';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const TEMPLATES_DIR =
   process.env.TEMPLATES_DIR ?? path.resolve(__dirname, '../../templates');
+
+const MAX_TEMPLATE_CHARS = parseInt(process.env.MAX_TEMPLATE_CHARS ?? '200000', 10);
 
 export async function load(templateId) {
   const templatePath = path.join(TEMPLATES_DIR, templateId);
@@ -24,5 +27,12 @@ export async function load(templateId) {
     })
   );
 
-  return results.filter(Boolean);
+  const files = results.filter(Boolean);
+
+  const totalChars = files.reduce((sum, f) => sum + f.content.length, 0);
+  if (totalChars > MAX_TEMPLATE_CHARS) {
+    throw createError(422, `Template "${templateId}" exceeds size limit (${totalChars} chars)`);
+  }
+
+  return files;
 }
