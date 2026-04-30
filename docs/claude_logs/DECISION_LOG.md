@@ -255,3 +255,78 @@ Autonomous Mode decisions for this project.
 **Decision / Action:** Added `ExportPage.css` with an `.export-actions` flex container (column on mobile, row on desktop ≥768px). Restructured ExportPage to show "Download ZIP" and "Create Repository" as two sibling buttons in `.export-actions`. The repo form is hidden by default and toggled by the "Create Repository" button, appearing below the action row.
 **Rationale:** "Buttons side-by-side, form below" requires the two action triggers to be at the same level in the DOM, with the form subordinate. The toggle avoids showing an empty form on page load and matches the natural flow of the spec.
 **Impact / Risk:** Low. UX change: repo form is now opt-in via toggle (previously always shown). Consistent with the spec's intent of two distinct top-level actions.
+
+---
+
+### Entry 018
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 implementation
+
+**Context:** ITER_03 spec lists `node-fetch ^3.3.2` as a new dependency for GitLab token exchange. Entry 005 already established that Node.js 20 native `fetch` is used instead of `node-fetch`. The same rationale applies here.
+**Decision / Action:** Did not add `node-fetch`. Native `fetch` is used in `services/oauth.js` for all HTTP calls including GitLab token exchange.
+**Rationale:** Node.js 20 native fetch is stable and sufficient. Adding `node-fetch` would be a duplicate capability with no benefit.
+**Impact / Risk:** None.
+**Outcome:** `node-fetch` not added to package.json.
+
+---
+
+### Entry 019
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 implementation
+
+**Context:** ITER_03 §04 `revokeToken` sketch does not specify implementation for GitHub. GitHub's token revocation API (DELETE /applications/:client_id/token) requires Basic auth with the client credentials, not the user token as bearer. GitLab uses a standard OAuth revoke POST.
+**Decision / Action:** Implemented GitHub revocation using Basic auth with `GITHUB_CLIENT_ID:GITHUB_CLIENT_SECRET` as the spec's intent requires. GitLab revocation uses the standard POST to `/oauth/revoke` with client credentials and the token.
+**Rationale:** This is the only correct approach per GitHub's API docs. The spec left the implementation body unspecified (`...`).
+**Impact / Risk:** Low. Revocation is best-effort and errors are swallowed per spec.
+**Outcome:** Applied in `server/services/oauth.js`.
+
+---
+
+### Entry 020
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 implementation
+
+**Context:** ITER_03 §03 lists GitLab OAuth scope as implied by `api`. The spec does not state it explicitly but GitLab's `api` scope is the minimum needed to create projects (repositories). GitHub uses `repo` scope as specified.
+**Decision / Action:** Used `scope: 'api'` for GitLab OAuth URL construction in `buildGitLabAuthUrl`.
+**Rationale:** GitLab's `api` scope grants full API access including project creation. The narrower `write_repository` scope does not allow creating new projects via API.
+**Impact / Risk:** Low. Slightly broader than minimum necessary but required for the feature.
+**Outcome:** Applied in `server/services/oauth.js`.
+
+---
+
+### Entry 021
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 implementation
+
+**Context:** ITER_03 §05 shows `ConfigurePage` with a `ProviderPicker` that fetches `/api/auth/providers` and hides unconfigured providers. The existing `ConfigurePage` renders all three options (`github`, `gitlab`, `zip`) as static radio buttons with no server check.
+**Decision / Action:** Added `fetchAuthProviders()` call on mount. Provider radio buttons are rendered dynamically from the API response. ZIP is always included. Default provider is the first configured one; fallback is `zip`. The generate button is disabled while providers are loading (null state).
+**Rationale:** Prevents users selecting GitHub/GitLab when credentials are not configured, which would cause a confusing error at the export step. The spec's ZIP-only mode (hide picker entirely) was implemented: if no providers are configured, only ZIP is shown without a radio group since there is only one option.
+**Impact / Risk:** Low. Adds a fetch on page load; failure gracefully defaults to ZIP-only.
+**Outcome:** Applied in `client/src/pages/ConfigurePage.jsx`.
+
+---
+
+### Entry 022
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 implementation
+
+**Context:** ITER_03 §04 `/:provider/callback` handles the case where the provider itself returns an error (e.g. user denies consent). The OAuth callback can include `error` and `error_description` query params from the provider.
+**Decision / Action:** Added a check for `error` in the callback query before processing `code`/`state`. On provider error, redirect to `/export#error=<message>` without consuming the state entry.
+**Rationale:** Without this check, a denied OAuth flow would reach the `pendingStates.get(state)` check with no `code` and produce a misleading "invalid state" error. The spec's error flow targets `/export#error=` as the destination.
+**Impact / Risk:** Low. Defensive; does not affect the happy path.
+**Outcome:** Applied in `server/routes/auth.js`.

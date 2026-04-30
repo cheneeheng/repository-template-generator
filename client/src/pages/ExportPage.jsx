@@ -33,12 +33,36 @@ function DownloadZipButton({ fileTree, onError }) {
   )
 }
 
-function RepoCreationForm({ fileTree, projectConfig, onError }) {
-  const [token, setToken] = useState('')
+function ConnectButton({ provider, token, onDisconnect }) {
+  const label = provider === 'gitlab' ? 'GitLab' : 'GitHub'
+
+  if (token) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}>
+        <span style={{ color: '#2a9d2a', fontWeight: 500 }}>Connected as {label} ✓</span>
+        <button
+          onClick={onDisconnect}
+          style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
+        >
+          Disconnect
+        </button>
+      </span>
+    )
+  }
+
+  return (
+    <a href={`/api/auth/${provider}/start`} style={{ textDecoration: 'none' }}>
+      <button style={{ padding: '0.5rem 1.5rem' }}>Connect {label}</button>
+    </a>
+  )
+}
+
+function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpired }) {
   const [owner, setOwner] = useState('')
   const [repoName, setRepoName] = useState('')
   const [loading, setLoading] = useState(false)
   const [repoUrl, setRepoUrl] = useState(null)
+  const provider = projectConfig?.provider
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -46,7 +70,7 @@ function RepoCreationForm({ fileTree, projectConfig, onError }) {
     try {
       const result = await exportRepo({
         fileTree,
-        provider: projectConfig?.provider,
+        provider,
         token,
         owner,
         repoName,
@@ -54,7 +78,11 @@ function RepoCreationForm({ fileTree, projectConfig, onError }) {
       })
       setRepoUrl(result.repoUrl)
     } catch (err) {
-      onError(err.message ?? 'Failed to create repository')
+      if (err.status === 401) {
+        onAuthExpired()
+      } else {
+        onError(err.message ?? 'Failed to create repository')
+      }
     } finally {
       setLoading(false)
     }
@@ -65,19 +93,7 @@ function RepoCreationForm({ fileTree, projectConfig, onError }) {
       <h2>Create Repository</h2>
       <div style={{ marginBottom: '1rem' }}>
         <label style={{ display: 'block', marginBottom: '0.25rem' }}>
-          {projectConfig?.provider === 'gitlab' ? 'GitLab' : 'GitHub'} Token
-        </label>
-        <input
-          type="password"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          required
-          style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
-        />
-      </div>
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.25rem' }}>
-          {projectConfig?.provider === 'gitlab' ? 'Namespace' : 'Org / User'}
+          {provider === 'gitlab' ? 'Namespace' : 'Org / User'}
         </label>
         <input
           type="text"
@@ -118,14 +134,50 @@ export default function ExportPage() {
   const projectConfig = useStore((s) => s.projectConfig)
   const [error, setError] = useState(null)
   const [showRepoForm, setShowRepoForm] = useState(false)
+  const [authState, setAuthState] = useState({ github: null, gitlab: null })
 
   useEffect(() => {
     if (!fileTree) navigate('/')
   }, [fileTree, navigate])
 
+  // Read token or error from URL fragment placed there by the OAuth callback redirect
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.slice(1))
+    const errorMsg = hash.get('error')
+    const token = hash.get('token')
+    const provider = hash.get('provider')
+
+    if (errorMsg) {
+      setError(decodeURIComponent(errorMsg))
+      window.history.replaceState(null, '', window.location.pathname)
+      return
+    }
+
+    if (token && provider && ['github', 'gitlab'].includes(provider)) {
+      setAuthState((prev) => ({ ...prev, [provider]: token }))
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [])
+
   if (!fileTree) return null
 
-  const isZipOnly = projectConfig?.provider === 'zip'
+  const provider = projectConfig?.provider
+  const isZipOnly = !provider || provider === 'zip'
+  const token = isZipOnly ? null : authState[provider]
+
+  function handleDisconnect() {
+    if (!token) return
+    // Best-effort revocation — ignore errors
+    fetch(`/api/auth/${provider}/revoke?token=${encodeURIComponent(token)}`).catch(() => {})
+    setAuthState((prev) => ({ ...prev, [provider]: null }))
+    setShowRepoForm(false)
+  }
+
+  function handleAuthExpired() {
+    setAuthState((prev) => ({ ...prev, [provider]: null }))
+    setShowRepoForm(false)
+    setError(`Session expired — reconnect ${provider === 'gitlab' ? 'GitLab' : 'GitHub'} to continue`)
+  }
 
   return (
     <div>
@@ -133,16 +185,27 @@ export default function ExportPage() {
       <div className="export-actions">
         <DownloadZipButton fileTree={fileTree} onError={setError} />
         {!isZipOnly && (
-          <button
-            onClick={() => setShowRepoForm((v) => !v)}
-            style={{ padding: '0.5rem 1.5rem' }}
-          >
-            {showRepoForm ? 'Hide Repo Form' : 'Create Repository'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <ConnectButton provider={provider} token={token} onDisconnect={handleDisconnect} />
+            {token && (
+              <button
+                onClick={() => setShowRepoForm((v) => !v)}
+                style={{ padding: '0.5rem 1.5rem' }}
+              >
+                {showRepoForm ? 'Hide Repo Form' : 'Create Repository'}
+              </button>
+            )}
+          </div>
         )}
       </div>
-      {!isZipOnly && showRepoForm && (
-        <RepoCreationForm fileTree={fileTree} projectConfig={projectConfig} onError={setError} />
+      {!isZipOnly && showRepoForm && token && (
+        <RepoCreationForm
+          fileTree={fileTree}
+          projectConfig={projectConfig}
+          token={token}
+          onError={setError}
+          onAuthExpired={handleAuthExpired}
+        />
       )}
       <ErrorToast message={error} onDismiss={() => setError(null)} />
     </div>

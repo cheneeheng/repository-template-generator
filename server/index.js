@@ -7,6 +7,7 @@ import healthRouter from './routes/health.js';
 import templatesRouter from './routes/templates.js';
 import generateRouter from './routes/generate.js';
 import exportRouter from './routes/export.js';
+import authRouter from './routes/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -19,6 +20,7 @@ app.use('/api/health', healthRouter);
 app.use('/api/templates', templatesRouter);
 app.use('/api/generate', generateRouter);
 app.use('/api/export', exportRouter);
+app.use('/api/auth', authRouter);
 
 app.use(errorHandler);
 
