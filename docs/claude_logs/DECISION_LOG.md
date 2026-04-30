@@ -79,7 +79,112 @@ Autonomous Mode decisions for this project.
 
 ---
 
+### Entry 006
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-28T00:00:00Z
+**Task:** Initial scaffold implementation
+
+**Context:** SKELETON defers "Error handling middleware, request logging, file-size guard on oversized templates." No error format is specified.
+**Decision / Action:** Add a minimal global error handler in `server/index.js` that returns `{ error: message }` JSON with the appropriate HTTP status. No logging middleware.
+**Rationale:** Without any error handler Express sends HTML stack traces to the client; the minimal handler is required for correctness, not scope creep.
+**Impact / Risk:** Negligible.
+**Outcome:** Applied in `server/index.js`.
+
+---
+
 ### Entry 007
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 spec shows the generate route delegating errors to `errorHandler`. Once `res.flushHeaders()` is called the HTTP status is already 200 and committed — `errorHandler` can no longer set a 4xx/5xx status on the same response.
+**Decision / Action:** Wrapped `llm.customiseStreaming` in a try/catch inside the route. On error, writes `data: {"type":"error","message":"..."}` as an SSE event before calling `res.end()`. The `errorHandler` path is retained only for errors that occur *before* `flushHeaders()` (e.g. Zod validation, 422 from `assembler.load`).
+**Rationale:** The only correct way to surface a mid-stream error to the client after headers are flushed is via an in-band SSE event. Letting the error reach `errorHandler` would silently swallow it.
+**Impact / Risk:** Low. Client-side `streamGenerate.js` handles `{ type: 'error' }` events.
+**Outcome:** Applied in `server/routes/generate.js` and `client/src/lib/streamGenerate.js`.
+
+---
+
+### Entry 008
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 §05 defines four `PreviewPage` states: `idle`, `streaming`, `done`, `error`. The `idle` state shows a "Generate" button. Navigation from `ConfigurePage` implies the user has already committed to generating.
+**Decision / Action:** Dropped the `idle` state. `PreviewPage` starts in `streaming` and immediately calls `streamGenerate` on mount. No explicit trigger button on this page.
+**Rationale:** `ConfigurePage` owns the form submission and triggers navigation; adding a second Generate button on `PreviewPage` creates a confusing double-confirmation flow. The spec's `idle` state was likely intended for a future in-page form, not the current multi-page wizard.
+**Impact / Risk:** Low. Minor UX scope reduction vs. spec; consistent with the existing page routing model.
+**Outcome:** Applied in `client/src/pages/PreviewPage.jsx`.
+
+---
+
+### Entry 009
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 spec sends `{ type: 'file_done', path }` SSE events as each file completes. This implies the model streams output file-by-file. The actual LLM call returns a single accumulated JSON array — individual file boundaries are not detectable mid-stream.
+**Decision / Action:** `file_done` events are never emitted by the server. The `onFileDone` callback in `streamGenerate.js` is wired but never fires in practice. The completed-paths list in `PreviewPage` remains empty during streaming.
+**Rationale:** Parsing partial JSON mid-stream to detect file boundaries would add significant complexity and fragility. The spec deferred "streaming individual file content as deltas" — this is the same limitation.
+**Impact / Risk:** Low. The streaming progress indicator still shows char count; the file list populates on `done`.
+**Outcome:** No `file_done` events emitted. Callback left in place for future implementation.
+
+---
+
+### Entry 010
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 spec's `ErrorToast` snippet uses a CSS class `error-toast`. At this stage the codebase used only inline styles; no CSS files existed yet.
+**Decision / Action:** Implemented `ErrorToast` with inline styles rather than a `className`. Added `onDismiss` to the `useEffect` dependency array (spec omitted it, which would cause a React exhaustive-deps lint warning).
+**Rationale:** Inline styles are consistent with the rest of the codebase at this stage. CSS class-based styling was introduced in ITER_02.
+**Impact / Risk:** Low. The component is self-contained and easy to migrate to a CSS class.
+**Outcome:** Applied in `client/src/components/ErrorToast.jsx`.
+
+---
+
+### Entry 011
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 §05 `streamGenerate.js` spec does not expose the `ReadableStreamDefaultReader` to the caller. `PreviewPage` needs to cancel the in-flight stream in the `useEffect` cleanup to prevent state updates after unmount.
+**Decision / Action:** Added an `onReader` callback to `streamGenerate`. The function calls `callbacks.onReader?.(reader)` immediately after obtaining the reader, allowing the caller to store it in a ref and call `reader.cancel()` on cleanup.
+**Rationale:** Without cancellation, the stream keeps reading after the component unmounts (e.g. user navigates back), causing React state update warnings and potential duplicate work on StrictMode remount.
+**Impact / Risk:** Low. Additive — callers that don't provide `onReader` are unaffected.
+**Outcome:** Applied in `client/src/lib/streamGenerate.js` and `client/src/pages/PreviewPage.jsx`.
+
+---
+
+### Entry 012
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 spec replaces the non-streaming `customise` function with `customiseStreaming` in `llm.js`. The non-streaming function was implemented in ITER_00 (skeleton).
+**Decision / Action:** Kept both `customise` and `customiseStreaming` exports in `llm.js`. Only `customiseStreaming` is called by the generate route.
+**Rationale:** Removing `customise` is a safe deletion but provides no benefit yet. It may be useful for testing or a future non-streaming fallback mode. The skeleton spec did not flag it as dead code.
+**Impact / Risk:** Negligible. Dead code but not harmful.
+**Outcome:** Both functions retained in `server/services/llm.js`.
+
+---
+
+### Entry 013
 
 **Type:** Decision
 **Mode:** Interactive
@@ -94,7 +199,7 @@ Autonomous Mode decisions for this project.
 
 ---
 
-### Entry 008
+### Entry 014
 
 **Type:** Decision
 **Mode:** Interactive
@@ -109,7 +214,7 @@ Autonomous Mode decisions for this project.
 
 ---
 
-### Entry 009
+### Entry 015
 
 **Type:** Decision
 **Mode:** Interactive
@@ -121,18 +226,3 @@ Autonomous Mode decisions for this project.
 **Rationale:** Shell owns the layout shell — pages should not re-impose padding. Leaving both would create 4rem of total padding on desktop.
 **Impact / Risk:** Low. No visual regression on existing content; Shell padding is equivalent.
 **Outcome:** Applied in all four page components.
-
----
-
-### Entry 006
-
-**Type:** Decision
-**Mode:** Autonomous
-**Timestamp:** 2026-04-28T00:00:00Z
-**Task:** Initial scaffold implementation
-
-**Context:** SKELETON defers "Error handling middleware, request logging, file-size guard on oversized templates." No error format is specified.
-**Decision / Action:** Add a minimal global error handler in `server/index.js` that returns `{ error: message }` JSON with the appropriate HTTP status. No logging middleware.
-**Rationale:** Without any error handler Express sends HTML stack traces to the client; the minimal handler is required for correctness, not scope creep.
-**Impact / Risk:** Negligible.
-**Outcome:** Applied in `server/index.js`.
