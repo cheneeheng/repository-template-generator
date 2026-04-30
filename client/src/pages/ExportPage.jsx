@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import useStore from '../store.js'
 import { exportZip, exportRepo } from '../api.js'
 import { ErrorToast } from '../components/ErrorToast.jsx'
+import './ExportPage.css'
 
 function DownloadZipButton({ fileTree, onError }) {
   const [loading, setLoading] = useState(false)
@@ -116,6 +117,7 @@ export default function ExportPage() {
   const fileTree = useStore((s) => s.fileTree)
   const projectConfig = useStore((s) => s.projectConfig)
   const [error, setError] = useState(null)
+  const [showRepoForm, setShowRepoForm] = useState(false)
 
   useEffect(() => {
     if (!fileTree) navigate('/')
@@ -128,8 +130,18 @@ export default function ExportPage() {
   return (
     <div>
       <h1>Export</h1>
-      <DownloadZipButton fileTree={fileTree} onError={setError} />
-      {!isZipOnly && (
+      <div className="export-actions">
+        <DownloadZipButton fileTree={fileTree} onError={setError} />
+        {!isZipOnly && (
+          <button
+            onClick={() => setShowRepoForm((v) => !v)}
+            style={{ padding: '0.5rem 1.5rem' }}
+          >
+            {showRepoForm ? 'Hide Repo Form' : 'Create Repository'}
+          </button>
+        )}
+      </div>
+      {!isZipOnly && showRepoForm && (
         <RepoCreationForm fileTree={fileTree} projectConfig={projectConfig} onError={setError} />
       )}
       <ErrorToast message={error} onDismiss={() => setError(null)} />

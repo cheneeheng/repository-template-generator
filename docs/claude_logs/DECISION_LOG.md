@@ -226,3 +226,32 @@ Autonomous Mode decisions for this project.
 **Rationale:** Shell owns the layout shell — pages should not re-impose padding. Leaving both would create 4rem of total padding on desktop.
 **Impact / Risk:** Low. No visual regression on existing content; Shell padding is equivalent.
 **Outcome:** Applied in all four page components.
+
+---
+
+### Entry 016
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_02 gap fix — Dockerfiles
+
+**Context:** ITER_02 spec shows `FROM node:20-alpine` + `npm ci` in both Dockerfiles. The project uses `bun` as its package manager (both `server/` and `client/` have `bun.lock`, no `package-lock.json`). `npm ci` requires a `package-lock.json` and would fail at build time.
+**Decision / Action:** Replaced `node:20-alpine` + `npm ci` with `oven/bun:1-alpine` + `bun install --frozen-lockfile` in both Dockerfiles. Server CMD changed from `node index.js` to `bun index.js`. Client build command changed from `npm run build` to `bun run build`.
+**Rationale:** `bun.lock` is the authoritative lockfile; there is no `package-lock.json` to satisfy `npm ci`. Bun is the project's declared package manager (devcontainer installs it via `npm install -g bun`). Using `oven/bun` as the base image is the canonical Docker approach for bun projects.
+**Impact / Risk:** Low. Bun is fully Node.js-compatible; Express and all server dependencies run without modification. The nginx serve stage is unchanged.
+**Outcome:** Applied in `server/Dockerfile` and `client/Dockerfile`.
+
+---
+
+### Entry 017
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_02 gap fix — ExportPage responsive layout
+
+**Context:** ITER_02 §05 specifies ExportPage layout as "Stacked buttons | Buttons side-by-side, form below". No `ExportPage.css` existed. The previous implementation always rendered `RepoCreationForm` inline below `DownloadZipButton`, with no responsive class or desktop side-by-side arrangement.
+**Decision / Action:** Added `ExportPage.css` with an `.export-actions` flex container (column on mobile, row on desktop ≥768px). Restructured ExportPage to show "Download ZIP" and "Create Repository" as two sibling buttons in `.export-actions`. The repo form is hidden by default and toggled by the "Create Repository" button, appearing below the action row.
+**Rationale:** "Buttons side-by-side, form below" requires the two action triggers to be at the same level in the DOM, with the form subordinate. The toggle avoids showing an empty form on page load and matches the natural flow of the spec.
+**Impact / Risk:** Low. UX change: repo form is now opt-in via toggle (previously always shown). Consistent with the spec's intent of two distinct top-level actions.
