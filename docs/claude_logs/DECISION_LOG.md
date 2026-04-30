@@ -91,3 +91,167 @@ Autonomous Mode decisions for this project.
 **Rationale:** Without any error handler Express sends HTML stack traces to the client; the minimal handler is required for correctness, not scope creep.
 **Impact / Risk:** Negligible.
 **Outcome:** Applied in `server/index.js`.
+
+---
+
+### Entry 007
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 spec shows the generate route delegating errors to `errorHandler`. Once `res.flushHeaders()` is called the HTTP status is already 200 and committed — `errorHandler` can no longer set a 4xx/5xx status on the same response.
+**Decision / Action:** Wrapped `llm.customiseStreaming` in a try/catch inside the route. On error, writes `data: {"type":"error","message":"..."}` as an SSE event before calling `res.end()`. The `errorHandler` path is retained only for errors that occur *before* `flushHeaders()` (e.g. Zod validation, 422 from `assembler.load`).
+**Rationale:** The only correct way to surface a mid-stream error to the client after headers are flushed is via an in-band SSE event. Letting the error reach `errorHandler` would silently swallow it.
+**Impact / Risk:** Low. Client-side `streamGenerate.js` handles `{ type: 'error' }` events.
+**Outcome:** Applied in `server/routes/generate.js` and `client/src/lib/streamGenerate.js`.
+
+---
+
+### Entry 008
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 §05 defines four `PreviewPage` states: `idle`, `streaming`, `done`, `error`. The `idle` state shows a "Generate" button. Navigation from `ConfigurePage` implies the user has already committed to generating.
+**Decision / Action:** Dropped the `idle` state. `PreviewPage` starts in `streaming` and immediately calls `streamGenerate` on mount. No explicit trigger button on this page.
+**Rationale:** `ConfigurePage` owns the form submission and triggers navigation; adding a second Generate button on `PreviewPage` creates a confusing double-confirmation flow. The spec's `idle` state was likely intended for a future in-page form, not the current multi-page wizard.
+**Impact / Risk:** Low. Minor UX scope reduction vs. spec; consistent with the existing page routing model.
+**Outcome:** Applied in `client/src/pages/PreviewPage.jsx`.
+
+---
+
+### Entry 009
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 spec sends `{ type: 'file_done', path }` SSE events as each file completes. This implies the model streams output file-by-file. The actual LLM call returns a single accumulated JSON array — individual file boundaries are not detectable mid-stream.
+**Decision / Action:** `file_done` events are never emitted by the server. The `onFileDone` callback in `streamGenerate.js` is wired but never fires in practice. The completed-paths list in `PreviewPage` remains empty during streaming.
+**Rationale:** Parsing partial JSON mid-stream to detect file boundaries would add significant complexity and fragility. The spec deferred "streaming individual file content as deltas" — this is the same limitation.
+**Impact / Risk:** Low. The streaming progress indicator still shows char count; the file list populates on `done`.
+**Outcome:** No `file_done` events emitted. Callback left in place for future implementation.
+
+---
+
+### Entry 010
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 spec's `ErrorToast` snippet uses a CSS class `error-toast`. At this stage the codebase used only inline styles; no CSS files existed yet.
+**Decision / Action:** Implemented `ErrorToast` with inline styles rather than a `className`. Added `onDismiss` to the `useEffect` dependency array (spec omitted it, which would cause a React exhaustive-deps lint warning).
+**Rationale:** Inline styles are consistent with the rest of the codebase at this stage. CSS class-based styling was introduced in ITER_02.
+**Impact / Risk:** Low. The component is self-contained and easy to migrate to a CSS class.
+**Outcome:** Applied in `client/src/components/ErrorToast.jsx`.
+
+---
+
+### Entry 011
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 §05 `streamGenerate.js` spec does not expose the `ReadableStreamDefaultReader` to the caller. `PreviewPage` needs to cancel the in-flight stream in the `useEffect` cleanup to prevent state updates after unmount.
+**Decision / Action:** Added an `onReader` callback to `streamGenerate`. The function calls `callbacks.onReader?.(reader)` immediately after obtaining the reader, allowing the caller to store it in a ref and call `reader.cancel()` on cleanup.
+**Rationale:** Without cancellation, the stream keeps reading after the component unmounts (e.g. user navigates back), causing React state update warnings and potential duplicate work on StrictMode remount.
+**Impact / Risk:** Low. Additive — callers that don't provide `onReader` are unaffected.
+**Outcome:** Applied in `client/src/lib/streamGenerate.js` and `client/src/pages/PreviewPage.jsx`.
+
+---
+
+### Entry 012
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_01 implementation
+
+**Context:** ITER_01 spec replaces the non-streaming `customise` function with `customiseStreaming` in `llm.js`. The non-streaming function was implemented in ITER_00 (skeleton).
+**Decision / Action:** Kept both `customise` and `customiseStreaming` exports in `llm.js`. Only `customiseStreaming` is called by the generate route.
+**Rationale:** Removing `customise` is a safe deletion but provides no benefit yet. It may be useful for testing or a future non-streaming fallback mode. The skeleton spec did not flag it as dead code.
+**Impact / Risk:** Negligible. Dead code but not harmful.
+**Outcome:** Both functions retained in `server/services/llm.js`.
+
+---
+
+### Entry 013
+
+**Type:** Decision
+**Mode:** Interactive
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_02 implementation
+
+**Context:** ITER_02 spec shows `PORT=3000` in `server/.env.example` and nginx proxying to `server:3000`. The existing local `server/.env` and `server/index.js` default use port 3001. Changing the Vite proxy to 3000 (as the plan implies) breaks local dev until the developer updates their `.env`.
+**Decision / Action:** Updated `server/.env.example` to `PORT=3000`, updated the Vite proxy target to `http://localhost:3000`, and added `PORT: 3000` as an explicit override in the docker-compose `environment` block (not relying solely on `env_file`).
+**Rationale:** The docker-compose must match the nginx proxy config (both must agree on 3000). The `PORT: 3000` environment override ensures the container ignores whatever value is in the local `.env`, making the Docker path robust. The local `.env` is not checked in and needs a one-time manual update.
+**Impact / Risk:** Low. Local dev breaks if the developer runs `npm run dev --prefix server` without updating their `.env`. Documented in the PR summary.
+**Outcome:** Applied in `docker-compose.yml`, `server/.env.example`, `client/vite.config.js`.
+
+---
+
+### Entry 014
+
+**Type:** Decision
+**Mode:** Interactive
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_02 implementation
+
+**Context:** ITER_02 §05 specifies CSS class-based responsive layout (`.template-grid`, `.preview-layout`, etc.). The existing codebase uses exclusively inline styles. No CSS files or modules existed in the project.
+**Decision / Action:** Added plain CSS files imported by each component (`Shell.css`, `TemplateGrid.css`, `PreviewPage.css`) rather than CSS modules or a CSS-in-JS approach.
+**Rationale:** Vite supports plain CSS imports natively. The plan's code samples use plain class selectors. CSS modules would require renaming every class reference to `styles.foo`; CSS-in-JS would add a dependency. Plain CSS is the smallest delta from the spec snippets.
+**Impact / Risk:** Low. Class names are not scoped — a naming collision could occur if future components use the same class names. BEM naming (already used in Shell) mitigates this.
+**Outcome:** Applied in `client/src/components/Shell.css`, `client/src/components/TemplateGrid.css`, `client/src/pages/PreviewPage.css`.
+
+---
+
+### Entry 015
+
+**Type:** Decision
+**Mode:** Interactive
+**Timestamp:** 2026-04-29T00:00:00Z
+**Task:** ITER_02 implementation
+
+**Context:** ITER_02 §05 specifies Shell wraps every page and provides a centred content column with `max-width: 1100px` and padding. All four pages previously had `style={{ padding: '2rem' }}` on their outermost div, which would double-pad when nested inside `shell__content`.
+**Decision / Action:** Removed `padding: '2rem'` from the outer div of all four page components. ConfigurePage's `maxWidth: '600px'` was updated to `560px` per the spec.
+**Rationale:** Shell owns the layout shell — pages should not re-impose padding. Leaving both would create 4rem of total padding on desktop.
+**Impact / Risk:** Low. No visual regression on existing content; Shell padding is equivalent.
+**Outcome:** Applied in all four page components.
+
+---
+
+### Entry 016
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_02 gap fix — Dockerfiles
+
+**Context:** ITER_02 spec shows `FROM node:20-alpine` + `npm ci` in both Dockerfiles. The project uses `bun` as its package manager (both `server/` and `client/` have `bun.lock`, no `package-lock.json`). `npm ci` requires a `package-lock.json` and would fail at build time.
+**Decision / Action:** Replaced `node:20-alpine` + `npm ci` with `oven/bun:1-alpine` + `bun install --frozen-lockfile` in both Dockerfiles. Server CMD changed from `node index.js` to `bun index.js`. Client build command changed from `npm run build` to `bun run build`.
+**Rationale:** `bun.lock` is the authoritative lockfile; there is no `package-lock.json` to satisfy `npm ci`. Bun is the project's declared package manager (devcontainer installs it via `npm install -g bun`). Using `oven/bun` as the base image is the canonical Docker approach for bun projects.
+**Impact / Risk:** Low. Bun is fully Node.js-compatible; Express and all server dependencies run without modification. The nginx serve stage is unchanged.
+**Outcome:** Applied in `server/Dockerfile` and `client/Dockerfile`.
+
+---
+
+### Entry 017
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_02 gap fix — ExportPage responsive layout
+
+**Context:** ITER_02 §05 specifies ExportPage layout as "Stacked buttons | Buttons side-by-side, form below". No `ExportPage.css` existed. The previous implementation always rendered `RepoCreationForm` inline below `DownloadZipButton`, with no responsive class or desktop side-by-side arrangement.
+**Decision / Action:** Added `ExportPage.css` with an `.export-actions` flex container (column on mobile, row on desktop ≥768px). Restructured ExportPage to show "Download ZIP" and "Create Repository" as two sibling buttons in `.export-actions`. The repo form is hidden by default and toggled by the "Create Repository" button, appearing below the action row.
+**Rationale:** "Buttons side-by-side, form below" requires the two action triggers to be at the same level in the DOM, with the form subordinate. The toggle avoids showing an empty form on page load and matches the natural flow of the spec.
+**Impact / Risk:** Low. UX change: repo form is now opt-in via toggle (previously always shown). Consistent with the spec's intent of two distinct top-level actions.

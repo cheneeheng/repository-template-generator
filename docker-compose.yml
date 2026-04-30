@@ -1,0 +1,22 @@
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    env_file: ./server/.env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./templates:/templates:ro
+    environment:
+      TEMPLATES_DIR: /templates
+      PORT: 3000
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - server

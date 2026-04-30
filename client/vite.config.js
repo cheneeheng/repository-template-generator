@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/api": "http://localhost:3001",
+      "/api": "http://localhost:3000",
     },
     watch: {
       usePolling: true, // Enable polling for file changes

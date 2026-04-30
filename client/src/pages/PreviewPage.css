@@ -1,0 +1,19 @@
+.preview-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .preview-layout {
+    flex-direction: row;
+  }
+  .preview-layout__tree {
+    width: 260px;
+    flex-shrink: 0;
+  }
+  .preview-layout__viewer {
+    flex: 1;
+    min-width: 0;
+  }
+}

@@ -35,7 +35,7 @@ export default function TemplatePickerPage() {
   }
 
   return (
-    <div style={{ padding: '2rem' }}>
+    <div>
       <h1>Choose a Template</h1>
       {templates === null ? (
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
