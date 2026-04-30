@@ -33,6 +33,9 @@ export async function exportRepo(body) {
     err.status = 401
     throw err
   }
-  if (!res.ok) throw new Error('Failed to create repo')
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error ?? 'Failed to create repo')
+  }
   return res.json()
 }

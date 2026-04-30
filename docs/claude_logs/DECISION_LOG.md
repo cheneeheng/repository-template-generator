@@ -330,3 +330,108 @@ Autonomous Mode decisions for this project.
 **Rationale:** Without this check, a denied OAuth flow would reach the `pendingStates.get(state)` check with no `code` and produce a misleading "invalid state" error. The spec's error flow targets `/export#error=` as the destination.
 **Impact / Risk:** Low. Defensive; does not affect the happy path.
 **Outcome:** Applied in `server/routes/auth.js`.
+
+---
+
+### Entry 023
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 gap fix — gitlab.js GITLAB_BASE_URL
+
+**Context:** `server/services/gitlab.js` hardcoded `https://gitlab.com` in all API fetch calls. ITER_03 §03 specifies `GITLAB_BASE_URL` to support self-hosted instances, and `services/oauth.js` already uses the env var correctly.
+**Decision / Action:** Extracted a `gitlabBase()` helper that reads `process.env.GITLAB_BASE_URL ?? 'https://gitlab.com'` and replaced all hardcoded URLs in `gitlab.js`. Also added 401 detection per-request: when the GitLab API returns 401, throw `createError(401, ...)` so the error handler surfaces it as HTTP 401 to the client.
+**Rationale:** Without the env var, self-hosted GitLab users would always hit the wrong host. Without 401 re-throw, an expired token causes a 500 instead of the 401 that triggers the client's re-auth flow.
+**Impact / Risk:** Low. Behavioural change only for self-hosted GitLab users and token expiry path.
+**Outcome:** Applied in `server/services/gitlab.js`.
+
+---
+
+### Entry 024
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 gap fix — errorHandler Octokit compatibility
+
+**Context:** `errorHandler.js` checked `err.statusCode` to determine the HTTP status to forward. `@octokit/rest` throws `RequestError` which sets `err.status`, not `err.statusCode`. This caused all Octokit 4xx errors (including 401 on expired token) to fall through to the 500 catch-all.
+**Decision / Action:** Updated the condition to `err.statusCode ?? err.status`, with an additional range check (`>= 400 && < 600`) to avoid accidentally forwarding non-HTTP numeric fields.
+**Rationale:** Minimal, targeted fix. Keeps `http-errors` path unchanged; adds Octokit compatibility. Range check prevents forwarding nonsensical status codes.
+**Impact / Risk:** Low. Only affects the error forwarding path.
+**Outcome:** Applied in `server/middleware/errorHandler.js`.
+
+---
+
+### Entry 025
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 gap fix — private repository toggle
+
+**Context:** ITER_03 §05 states "The form fields (repo name, org/namespace, private toggle) are unchanged." No private toggle existed in `RepoCreationForm`. `github.js` hardcoded `private: false`; `gitlab.js` hardcoded `visibility: 'public'`. The schema in `export.js` had no `isPrivate` field.
+**Decision / Action:** Added `isPrivate` boolean (default `false`) to: the Zod `repoSchema` in `export.js`; the `createRepo` function signature in `github.js` and `gitlab.js`; and a checkbox in `RepoCreationForm` that sends `isPrivate` via `exportRepo`.
+**Rationale:** The spec explicitly lists the private toggle as a required field. Hardcoding public repos prevents users from creating private repositories, which is a core use case.
+**Impact / Risk:** Low. Additive: default is `false` so existing behaviour is preserved.
+**Outcome:** Applied in `server/routes/export.js`, `server/services/github.js`, `server/services/gitlab.js`, `client/src/pages/ExportPage.jsx`.
+
+---
+
+### Entry 026
+
+**Type:** Execution
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 gap review — PORT default mismatch
+
+**Context:** `server/index.js` defaulted to port 3001 (`process.env.PORT ?? 3001`). Entry 013 updated `.env.example` to `PORT=3000` and the Vite proxy target to `http://localhost:3000`. The `index.js` fallback was not updated, so running the server without a `.env` file would start on 3001 while the Vite proxy targets 3000 — all API calls would 503.
+**Decision / Action:** Changed the fallback in `server/index.js` to `?? 3000`.
+**Rationale:** The fallback must match the Vite proxy target and `.env.example`. Without a `.env` file the server now starts on the port the client expects.
+**Impact / Risk:** Low. Any developer who relied on the undocumented 3001 fallback without a `.env` will need to add `PORT=3001` to their `.env`.
+**Outcome:** Applied in `server/index.js`.
+
+---
+
+### Entry 027
+
+**Type:** Execution
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 gap review — GitHub org vs user repo creation
+
+**Context:** `server/services/github.js` always called `createForAuthenticatedUser`, ignoring the `owner` field collected by `RepoCreationForm`. If the user entered an org name, the repo would be created under their personal account instead of the org, and the subsequent `createOrUpdateFileContents` call would target the wrong owner/repo path, causing a 404.
+**Decision / Action:** Added a `getAuthenticated` call to retrieve the current user's login. If `owner` differs from the authenticated user, `createInOrg` is used instead of `createForAuthenticatedUser`. The `repoOwner` for the file-upload loop is derived from `data.owner.login` (the actual repo owner returned by the API), not the raw `owner` input.
+**Rationale:** `owner` is labelled "Org / User" in the UI — it must drive the creation endpoint. Using `data.owner.login` instead of the raw `owner` input avoids a mismatch if the API normalises the owner name.
+**Impact / Risk:** Low. Adds one extra API call per repo creation. Personal-account creation path unchanged for users who enter their own username.
+**Outcome:** Applied in `server/services/github.js`.
+
+---
+
+### Entry 028
+
+**Type:** Execution
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 gap review — double decodeURIComponent in ExportPage
+
+**Context:** `ExportPage.jsx` read the error fragment with `URLSearchParams.get('error')`, which already percent-decodes the value, then passed the result to `decodeURIComponent()`. For most ASCII error messages this is a no-op, but if the error contains a literal `%` character (e.g. "50% done"), `URLSearchParams` would decode `%25` → `%`, and the subsequent `decodeURIComponent('%')` would throw `URIError: malformed URI`.
+**Decision / Action:** Removed the `decodeURIComponent` wrapper; `setError(errorMsg)` is used directly.
+**Rationale:** `URLSearchParams` handles decoding. Double-decoding is incorrect and fragile.
+**Impact / Risk:** Negligible. The displayed error text is identical for all valid ASCII messages.
+**Outcome:** Applied in `client/src/pages/ExportPage.jsx`.
+
+---
+
+### Entry 029
+
+**Type:** Execution
+**Mode:** Autonomous
+**Timestamp:** 2026-04-30T00:00:00Z
+**Task:** ITER_03 gap review — exportRepo swallows server error details
+
+**Context:** `client/src/api.js` `exportRepo` threw `new Error('Failed to create repo')` for all non-401 non-2xx responses, discarding the actual error from the server body (e.g. "Repository already exists", "Name must not contain spaces"). Users saw only a generic message.
+**Decision / Action:** Added `const data = await res.json().catch(() => ({}))` before the throw, and used `data.error ?? 'Failed to create repo'` as the message. The `.catch(() => ({}))` guards against non-JSON error bodies.
+**Rationale:** The server already serialises all errors as `{ error: string }`. Surfacing this to the user is strictly better than discarding it.
+**Impact / Risk:** Low. The error path is already a failure case; the only change is a more informative message.
+**Outcome:** Applied in `client/src/api.js`.

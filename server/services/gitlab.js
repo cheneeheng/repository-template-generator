@@ -1,21 +1,29 @@
-export async function createRepo({ token, owner, repoName, description, fileTree }) {
+import createError from 'http-errors';
+
+function gitlabBase() {
+  return process.env.GITLAB_BASE_URL ?? 'https://gitlab.com';
+}
+
+export async function createRepo({ token, owner, repoName, description, isPrivate, fileTree }) {
+  const base = gitlabBase();
   const headers = {
-    'Authorization': `Bearer ${token}`,
+    Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };
 
-  const projectRes = await fetch('https://gitlab.com/api/v4/projects', {
+  const projectRes = await fetch(`${base}/api/v4/projects`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
       name: repoName,
       description: description ?? '',
-      visibility: 'public',
+      visibility: isPrivate ? 'private' : 'public',
       initialize_with_readme: false,
     }),
   });
 
   if (!projectRes.ok) {
+    if (projectRes.status === 401) throw createError(401, 'GitLab authentication expired');
     const err = await projectRes.text();
     throw new Error(`GitLab project creation failed: ${err}`);
   }
@@ -25,7 +33,7 @@ export async function createRepo({ token, owner, repoName, description, fileTree
   for (const file of fileTree) {
     const encodedPath = encodeURIComponent(file.path);
     const fileRes = await fetch(
-      `https://gitlab.com/api/v4/projects/${project.id}/repository/files/${encodedPath}`,
+      `${base}/api/v4/projects/${project.id}/repository/files/${encodedPath}`,
       {
         method: 'POST',
         headers,
@@ -38,6 +46,7 @@ export async function createRepo({ token, owner, repoName, description, fileTree
     );
 
     if (!fileRes.ok) {
+      if (fileRes.status === 401) throw createError(401, 'GitLab authentication expired');
       const err = await fileRes.text();
       throw new Error(`GitLab file create failed for ${file.path}: ${err}`);
     }

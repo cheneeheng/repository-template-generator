@@ -27,6 +27,7 @@ const repoSchema = z.object({
   owner: z.string(),
   repoName: z.string(),
   description: z.string().optional(),
+  isPrivate: z.boolean().optional().default(false),
 });
 
 router.post('/repo', async (req, res, next) => {

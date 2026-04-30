@@ -60,6 +60,7 @@ function ConnectButton({ provider, token, onDisconnect }) {
 function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpired }) {
   const [owner, setOwner] = useState('')
   const [repoName, setRepoName] = useState('')
+  const [isPrivate, setIsPrivate] = useState(false)
   const [loading, setLoading] = useState(false)
   const [repoUrl, setRepoUrl] = useState(null)
   const provider = projectConfig?.provider
@@ -75,6 +76,7 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
         owner,
         repoName,
         description: projectConfig?.description,
+        isPrivate,
       })
       setRepoUrl(result.repoUrl)
     } catch (err) {
@@ -113,6 +115,16 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
           style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
         />
       </div>
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+          <input
+            type="checkbox"
+            checked={isPrivate}
+            onChange={(e) => setIsPrivate(e.target.checked)}
+          />
+          Private repository
+        </label>
+      </div>
       <button type="submit" disabled={loading} style={{ padding: '0.5rem 1.5rem' }}>
         {loading ? 'Creating...' : 'Create Repository'}
       </button>
@@ -148,7 +160,7 @@ export default function ExportPage() {
     const provider = hash.get('provider')
 
     if (errorMsg) {
-      setError(decodeURIComponent(errorMsg))
+      setError(errorMsg)
       window.history.replaceState(null, '', window.location.pathname)
       return
     }
