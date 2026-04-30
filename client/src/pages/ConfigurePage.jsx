@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useStore from '../store.js'
+import { fetchAuthProviders } from '../api.js'
 
 export default function ConfigurePage() {
   const navigate = useNavigate()
@@ -9,12 +10,28 @@ export default function ConfigurePage() {
 
   const [projectName, setProjectName] = useState('')
   const [description, setDescription] = useState('')
-  const [provider, setProvider] = useState('github')
+  const [provider, setProvider] = useState('zip')
   const [submitting, setSubmitting] = useState(false)
+  const [availableProviders, setAvailableProviders] = useState(null) // null = loading
 
   useEffect(() => {
     if (!selectedTemplate) navigate('/')
   }, [selectedTemplate, navigate])
+
+  useEffect(() => {
+    fetchAuthProviders()
+      .then((p) => {
+        setAvailableProviders(p)
+        // Default to first configured provider, fallback to zip
+        if (p.github) setProvider('github')
+        else if (p.gitlab) setProvider('gitlab')
+        else setProvider('zip')
+      })
+      .catch(() => {
+        setAvailableProviders({ github: false, gitlab: false })
+        setProvider('zip')
+      })
+  }, [])
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -24,6 +41,14 @@ export default function ConfigurePage() {
   }
 
   if (!selectedTemplate) return null
+
+  const hasProviders = availableProviders && (availableProviders.github || availableProviders.gitlab)
+
+  const providerOptions = [
+    ...(availableProviders?.github ? [{ value: 'github', label: 'GitHub' }] : []),
+    ...(availableProviders?.gitlab ? [{ value: 'gitlab', label: 'GitLab' }] : []),
+    { value: 'zip', label: 'ZIP only' },
+  ]
 
   return (
     <div style={{ maxWidth: '560px' }}>
@@ -49,23 +74,25 @@ export default function ConfigurePage() {
             style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
           />
         </div>
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>Provider</label>
-          {['github', 'gitlab', 'zip'].map((p) => (
-            <label key={p} style={{ marginRight: '1rem' }}>
-              <input
-                type="radio"
-                name="provider"
-                value={p}
-                checked={provider === p}
-                onChange={() => setProvider(p)}
-                style={{ marginRight: '0.25rem' }}
-              />
-              {p === 'zip' ? 'ZIP only' : p.charAt(0).toUpperCase() + p.slice(1)}
-            </label>
-          ))}
-        </div>
-        <button type="submit" disabled={submitting} style={{ padding: '0.5rem 1.5rem' }}>
+        {hasProviders && availableProviders && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Provider</label>
+            {providerOptions.map((p) => (
+              <label key={p.value} style={{ marginRight: '1rem' }}>
+                <input
+                  type="radio"
+                  name="provider"
+                  value={p.value}
+                  checked={provider === p.value}
+                  onChange={() => setProvider(p.value)}
+                  style={{ marginRight: '0.25rem' }}
+                />
+                {p.label}
+              </label>
+            ))}
+          </div>
+        )}
+        <button type="submit" disabled={submitting || availableProviders === null} style={{ padding: '0.5rem 1.5rem' }}>
           {submitting ? 'Starting...' : 'Generate'}
         </button>
       </form>
