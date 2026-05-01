@@ -56,7 +56,7 @@ export default function PreviewPage() {
         onDone(tree) {
           setFileTree(tree)
           setStreamState((prev) => ({ ...prev, status: 'done', fileTree: tree }))
-          setActiveFile(tree[0] ?? null)
+          setActiveFile((prev) => prev ?? (tree[0] ?? null))
         },
         onError(msg) {
           setStreamState((prev) => ({ ...prev, status: 'error', error: msg }))

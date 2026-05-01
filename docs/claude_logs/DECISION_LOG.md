@@ -510,3 +510,54 @@ Autonomous Mode decisions for this project.
 **Rationale:** Matches the spec's state shape exactly. Rendering the file tree during streaming (gated on `files.length > 0`) avoids a redundant separate list component. The `FileViewer` reads the file object directly from the tree click handler — no null-check needed during streaming since only completed files are clickable.
 **Impact / Risk:** Low. UX improvement: files are immediately readable as they arrive instead of waiting for the full `done` event.
 **Outcome:** Applied in `client/src/pages/PreviewPage.jsx`.
+
+---
+
+### Entry 035
+
+**Type:** Bug Fix
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_05 gap review — clarinet CStream API misuse
+
+**Context:** `server/services/llm.js` used `parser.close()`, `parser.onend = fn`, and `parser.onerror = fn` on a `clarinet.createStream()` CStream instance. Verified against clarinet 0.9.1 source:
+1. `CStream` has no `close()` method — `parser.close()` throws `TypeError: parser.close is not a function` when the Anthropic `finalMessage` event fires.
+2. `'end'` and `'error'` are excluded from `streamWraps` in clarinet's CStream. CStream does not create property proxies for `onend`/`onerror` — property assignment silently sets a plain property with no effect. Listeners must be registered via `.on('end', fn)` / `.on('error', fn)`.
+The net result: the Promise in `customiseStreaming` never resolves naturally; when `finalMessage` fires, the TypeError propagates via the Anthropic SDK's error path, causing `customiseStreaming` to throw on every request. The `done` SSE event is never sent to the client; the client receives an error SSE instead.
+**Decision / Action:** Three targeted changes in `llm.js`:
+- `parser.close()` → `parser.end()` (the correct CStream termination method)
+- `parser.onerror = fn` → `parser.on('error', fn)` (EventEmitter registration)
+- `parser.onend = fn` → `parser.on('end', fn)` (EventEmitter registration)
+**Rationale:** The ITER_05 planning spec documented the intent correctly (`parser.close()` signals end) but used the CParser API, not the CStream API. CStream's `end()` delegates to `_parser.end()` → `emit(parser, 'onend')` → CStream bridge → EventEmitter 'end'. The other streamWraps events (`onopenobject`, `oncloseobject`, etc.) correctly used property assignment because CStream does proxy those.
+**Impact / Risk:** Critical fix. Without it, LLM streaming always terminates with an error SSE event; per-file `file_done` events are emitted correctly but the `done` event (and therefore the full file tree) is never delivered.
+**Outcome:** Applied in `server/services/llm.js`.
+
+---
+
+### Entry 036
+
+**Type:** Bug Fix
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_05 gap review — PreviewPage activeFile clobbered on done
+
+**Context:** `PreviewPage.jsx` `onDone` handler called `setActiveFile(tree[0] ?? null)` unconditionally. If the user clicked a file during streaming (valid, per ITER_05 §05), their selection was reset to `tree[0]` when the stream completed.
+**Decision / Action:** Changed to `setActiveFile((prev) => prev ?? (tree[0] ?? null))` — functional updater preserves any existing selection; falls back to `tree[0]` only when nothing has been selected yet.
+**Rationale:** The spec says the FileViewer "is clickable during streaming". Overwriting the user's choice on completion contradicts that intent and creates a jarring UX jump.
+**Impact / Risk:** Low. Functional updater is safe with React concurrent mode; no race condition.
+**Outcome:** Applied in `client/src/pages/PreviewPage.jsx`.
+
+---
+
+### Entry 037
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_05 gap review — prompts/customise.js re-export
+
+**Context:** ITER_05 §04 states "prompts/customise.js is not deleted — it becomes prompts/versions/customise.v1.js with a thin re-export wrapper in the original location for any code that still imports it directly." The file still exported the original `SYSTEM_PROMPT` string constant with no connection to `customise.v1.js`.
+**Decision / Action:** Updated `customise.js` to import `CUSTOMISE_V1` from `./versions/customise.v1.js` and re-export `SYSTEM_PROMPT = CUSTOMISE_V1.system`. Added a named re-export of `CUSTOMISE_V1` as `SYSTEM_PROMPT_VERSION` for completeness.
+**Rationale:** No code currently imports from `customise.js` (confirmed by grep — zero hits). The re-export is purely defensive. Bridging `SYSTEM_PROMPT` to `CUSTOMISE_V1.system` maintains backward compatibility if any future code imports the old name.
+**Impact / Risk:** Negligible. The file is unused; the change does not affect runtime behaviour.
+**Outcome:** Applied in `server/prompts/customise.js`.

@@ -1,10 +1,4 @@
-export const SYSTEM_PROMPT = `You are a project scaffold customiser. You will receive a JSON array of template files
-in the format [{path, content}] along with a project name and description.
-
-Your job:
-1. Replace all occurrences of the placeholder "{{PROJECT_NAME}}" with the actual project name.
-2. Rewrite README.md to describe the actual project using the provided description.
-3. Insert the project name and description into package.json, pyproject.toml, or equivalent where present.
-4. Make no other changes.
-
-Respond ONLY with the updated JSON array. No prose, no markdown fences.`;
+// Thin re-export for any legacy import of SYSTEM_PROMPT — nothing should import this file after ITER_05
+export { CUSTOMISE_V1 as SYSTEM_PROMPT_VERSION } from './versions/customise.v1.js';
+import { CUSTOMISE_V1 } from './versions/customise.v1.js';
+export const SYSTEM_PROMPT = CUSTOMISE_V1.system;

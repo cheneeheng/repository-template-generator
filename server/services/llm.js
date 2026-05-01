@@ -79,15 +79,17 @@ export async function customiseStreaming(files, projectName, description, res) {
     };
     parser.onopenarray = () => { depth++; };
     parser.onclosearray = () => { depth--; };
-    parser.onerror = (e) => { parseError = e; reject(e); };
-    parser.onend = () => resolve();
+    // CStream exposes 'end'/'error' only via EventEmitter .on(), not property assignment
+    parser.on('error', (e) => { parseError = e; reject(e); });
+    parser.on('end', () => resolve());
 
     stream.on('text', (text) => {
       res.write('data: ' + JSON.stringify({ type: 'delta', chunk: text }) + '\n\n');
       parser.write(text);
     });
 
-    stream.on('finalMessage', () => { parser.close(); });
+    // CStream has no close() — use end() to flush and fire the 'end' event
+    stream.on('finalMessage', () => { parser.end(); });
     stream.on('error', reject);
   });
 
