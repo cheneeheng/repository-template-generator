@@ -1,14 +1,15 @@
 import Anthropic from '@anthropic-ai/sdk';
+import clarinet from 'clarinet';
 import createError from 'http-errors';
-import { SYSTEM_PROMPT } from '../prompts/customise.js';
+import { CURRENT_PROMPT_VERSION } from '../prompts/registry.js';
 
 const client = new Anthropic();
 
 export async function customise(files, projectName, description) {
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: CURRENT_PROMPT_VERSION.model,
     max_tokens: 8192,
-    system: SYSTEM_PROMPT,
+    system: CURRENT_PROMPT_VERSION.system,
     messages: [
       {
         role: 'user',
@@ -28,9 +29,9 @@ export async function customise(files, projectName, description) {
 
 export async function customiseStreaming(files, projectName, description, res) {
   const stream = client.messages.stream({
-    model: 'claude-sonnet-4-6',
+    model: CURRENT_PROMPT_VERSION.model,
     max_tokens: 8192,
-    system: SYSTEM_PROMPT,
+    system: CURRENT_PROMPT_VERSION.system,
     messages: [
       {
         role: 'user',
@@ -39,19 +40,61 @@ export async function customiseStreaming(files, projectName, description, res) {
     ],
   });
 
-  let accumulated = '';
-  for await (const chunk of stream) {
-    if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-      accumulated += chunk.delta.text;
-      res.write('data: ' + JSON.stringify({ type: 'delta', chunk: chunk.delta.text }) + '\n\n');
-    }
-  }
+  const assembled = [];
+  let parseError = null;
 
-  let parsed;
-  try {
-    parsed = JSON.parse(accumulated);
-  } catch {
+  await new Promise((resolve, reject) => {
+    const parser = clarinet.createStream();
+    let depth = 0;
+    let inObject = false;
+    let currentKey = null;
+    let currentFile = {};
+
+    parser.onvalue = (v) => {
+      if (depth === 2 && currentKey) {
+        currentFile[currentKey] = v;
+      }
+    };
+    parser.onkey = (k) => { currentKey = k; };
+    parser.onopenobject = (firstKey) => {
+      depth++;
+      if (depth === 2) {
+        currentFile = {};
+        inObject = true;
+        currentKey = firstKey ?? null;
+      }
+    };
+    parser.oncloseobject = () => {
+      if (depth === 2 && inObject) {
+        assembled.push(currentFile);
+        res.write('data: ' + JSON.stringify({
+          type: 'file_done',
+          path: currentFile.path,
+          content: currentFile.content,
+        }) + '\n\n');
+        currentFile = {};
+        inObject = false;
+      }
+      depth--;
+    };
+    parser.onopenarray = () => { depth++; };
+    parser.onclosearray = () => { depth--; };
+    // CStream exposes 'end'/'error' only via EventEmitter .on(), not property assignment
+    parser.on('error', (e) => { parseError = e; reject(e); });
+    parser.on('end', () => resolve());
+
+    stream.on('text', (text) => {
+      res.write('data: ' + JSON.stringify({ type: 'delta', chunk: text }) + '\n\n');
+      parser.write(text);
+    });
+
+    // CStream has no close() — use end() to flush and fire the 'end' event
+    stream.on('finalMessage', () => { parser.end(); });
+    stream.on('error', reject);
+  });
+
+  if (parseError) {
     throw createError(500, 'LLM response was truncated or malformed');
   }
-  return parsed;
+  return assembled;
 }

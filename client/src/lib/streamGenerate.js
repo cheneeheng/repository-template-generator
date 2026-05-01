@@ -40,7 +40,7 @@ export async function streamGenerate({ templateId, projectName, description }, c
         if (raw === '[DONE]') return;
         const msg = JSON.parse(raw);
         if (msg.type === 'delta') callbacks.onDelta?.(msg.chunk);
-        if (msg.type === 'file_done') callbacks.onFileDone?.(msg.path);
+        if (msg.type === 'file_done') callbacks.onFileDone?.(msg.path, msg.content);
         if (msg.type === 'done') callbacks.onDone?.(msg.fileTree);
         if (msg.type === 'error') { callbacks.onError?.(msg.message); return; }
       }

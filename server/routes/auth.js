@@ -6,6 +6,7 @@ import {
   exchangeCodeForToken,
   revokeToken,
 } from '../services/oauth.js';
+import { authStartLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.get('/providers', (req, res) => {
   });
 });
 
-router.get('/:provider/start', (req, res) => {
+router.get('/:provider/start', authStartLimiter, (req, res) => {
   const { provider } = req.params;
   if (!['github', 'gitlab'].includes(provider)) {
     return res.status(400).json({ error: 'Unknown provider' });

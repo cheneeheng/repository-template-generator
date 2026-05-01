@@ -13,15 +13,14 @@ export default function PreviewPage() {
   const projectConfig = useStore((s) => s.projectConfig)
   const setFileTree = useStore((s) => s.setFileTree)
 
-  // status: 'streaming' | 'done' | 'error'
-  // Note: ITER_01 spec includes an 'idle' state with a Generate button, but
-  // ConfigurePage owns the form + navigation trigger, so streaming auto-starts here.
-  const [status, setStatus] = useState('streaming')
-  const [tokenCount, setTokenCount] = useState(0)
-  const [completedPaths, setCompletedPaths] = useState([])
-  const [fileTree, setLocalFileTree] = useState(null)
+  const [streamState, setStreamState] = useState({
+    status: 'streaming',
+    files: [],
+    fileTree: null,
+    error: null,
+    tokenCount: 0,
+  })
   const [activeFile, setActiveFile] = useState(null)
-  const [error, setError] = useState(null)
 
   const started = useRef(false)
   const readerRef = useRef(null)
@@ -32,7 +31,6 @@ export default function PreviewPage() {
       return
     }
 
-    // Guard against StrictMode double-invocation in dev
     if (started.current) return
     started.current = true
 
@@ -47,20 +45,21 @@ export default function PreviewPage() {
           readerRef.current = reader
         },
         onDelta(chunk) {
-          setTokenCount((n) => n + chunk.length)
+          setStreamState((prev) => ({ ...prev, tokenCount: prev.tokenCount + chunk.length }))
         },
-        onFileDone(path) {
-          setCompletedPaths((prev) => [...prev, path])
+        onFileDone(path, content) {
+          setStreamState((prev) => ({
+            ...prev,
+            files: [...prev.files, { path, content }],
+          }))
         },
         onDone(tree) {
-          setLocalFileTree(tree)
           setFileTree(tree)
-          setActiveFile(tree[0] ?? null)
-          setStatus('done')
+          setStreamState((prev) => ({ ...prev, status: 'done', fileTree: tree }))
+          setActiveFile((prev) => prev ?? (tree[0] ?? null))
         },
         onError(msg) {
-          setError(msg)
-          setStatus('error')
+          setStreamState((prev) => ({ ...prev, status: 'error', error: msg }))
         },
       }
     )
@@ -69,6 +68,8 @@ export default function PreviewPage() {
       readerRef.current?.cancel()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { status, files, fileTree, error, tokenCount } = streamState
 
   if (status === 'streaming') {
     return (
@@ -94,21 +95,30 @@ export default function PreviewPage() {
             />
           </div>
           <p style={{ color: '#666', marginTop: '0.5rem' }}>
-            {tokenCount} chars received
+            {files.length > 0
+              ? `${files.length} file${files.length === 1 ? '' : 's'} complete`
+              : 'Starting...'}
+            <span style={{ marginLeft: '1rem', fontSize: '0.8em', color: '#999' }}>
+              {tokenCount} chars received
+            </span>
           </p>
         </div>
-        {completedPaths.length > 0 && (
-          <div>
-            <p style={{ fontWeight: 600 }}>Files completed:</p>
-            <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
-              {completedPaths.map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
+        {files.length > 0 && (
+          <div className="preview-layout">
+            <div className="preview-layout__tree">
+              <FileTree
+                files={files}
+                onSelect={setActiveFile}
+                activeFile={activeFile}
+              />
+            </div>
+            <div className="preview-layout__viewer">
+              <FileViewer file={activeFile} />
+            </div>
           </div>
         )}
         <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
-        <ErrorToast message={error} onDismiss={() => setError(null)} />
+        <ErrorToast message={error} onDismiss={() => setStreamState((p) => ({ ...p, error: null }))} />
       </div>
     )
   }
@@ -143,7 +153,7 @@ export default function PreviewPage() {
       >
         Proceed to Export
       </button>
-      <ErrorToast message={error} onDismiss={() => setError(null)} />
+      <ErrorToast message={error} onDismiss={() => setStreamState((p) => ({ ...p, error: null }))} />
     </div>
   )
 }
