@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import * as assembler from '../services/assembler.js';
 import * as llm from '../services/llm.js';
+import { generateLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -11,7 +12,7 @@ const generateSchema = z.object({
   description: z.string().max(500).optional().default(''),
 });
 
-router.post('/', async (req, res) => {
+router.post('/', generateLimiter, async (req, res) => {
   const { templateId, projectName, description } = generateSchema.parse(req.body);
   const baseFiles = await assembler.load(templateId);
 

@@ -1,24 +1,32 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useStore from '../store.js'
-import { exportZip, exportRepo } from '../api.js'
+import { exportRepo } from '../api.js'
 import { ErrorToast } from '../components/ErrorToast.jsx'
 import './ExportPage.css'
 
-function DownloadZipButton({ fileTree, onError }) {
+function DownloadZipButton({ fileTree, projectName, onError }) {
   const [loading, setLoading] = useState(false)
 
   async function handleClick() {
     setLoading(true)
     try {
-      const res = await exportZip(fileTree)
+      const res = await fetch('/api/export/zip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileTree, projectName }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? 'ZIP export failed')
+      }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'project.zip'
+      a.download = `${projectName ?? 'project'}.zip`
       a.click()
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 10_000)
     } catch (err) {
       onError(err.message ?? 'Failed to export ZIP')
     } finally {
@@ -28,7 +36,7 @@ function DownloadZipButton({ fileTree, onError }) {
 
   return (
     <button onClick={handleClick} disabled={loading} style={{ padding: '0.5rem 1.5rem' }}>
-      {loading ? 'Preparing...' : 'Download ZIP'}
+      {loading ? <span className="spinner" aria-label="Loading" /> : 'Download ZIP'}
     </button>
   )
 }
@@ -126,7 +134,7 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
         </label>
       </div>
       <button type="submit" disabled={loading} style={{ padding: '0.5rem 1.5rem' }}>
-        {loading ? 'Creating...' : 'Create Repository'}
+        {loading ? <span className="spinner" aria-label="Loading" /> : 'Create Repository'}
       </button>
       {repoUrl && (
         <p style={{ marginTop: '1rem' }}>
@@ -195,7 +203,7 @@ export default function ExportPage() {
     <div>
       <h1>Export</h1>
       <div className="export-actions">
-        <DownloadZipButton fileTree={fileTree} onError={setError} />
+        <DownloadZipButton fileTree={fileTree} projectName={projectConfig?.projectName} onError={setError} />
         {!isZipOnly && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <ConnectButton provider={provider} token={token} onDisconnect={handleDisconnect} />

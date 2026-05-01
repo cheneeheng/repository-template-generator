@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SkeletonBlock } from './SkeletonBlock.jsx'
 
 function buildTree(files) {
   const tree = {}
@@ -28,10 +29,10 @@ function TreeNode({ name, node, onSelect, activeFile, depth }) {
           paddingTop: '3px',
           paddingBottom: '3px',
           cursor: 'pointer',
-          background: isActive ? '#dbeafe' : 'transparent',
+          background: isActive ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)' : 'transparent',
           borderRadius: '4px',
           fontSize: '0.875rem',
-          color: isActive ? '#1d4ed8' : '#333',
+          color: isActive ? 'var(--color-accent)' : 'var(--color-text)',
         }}
       >
         {name}
@@ -51,6 +52,7 @@ function TreeNode({ name, node, onSelect, activeFile, depth }) {
           fontWeight: 600,
           fontSize: '0.875rem',
           userSelect: 'none',
+          color: 'var(--color-text)',
         }}
       >
         {open ? '▾' : '▸'} {name}
@@ -70,11 +72,16 @@ function TreeNode({ name, node, onSelect, activeFile, depth }) {
   )
 }
 
-export default function FileTree({ files, onSelect, activeFile }) {
+export default function FileTree({ files, onSelect, activeFile, streaming = false }) {
   const tree = buildTree(files)
 
   return (
-    <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '0.5rem', background: '#fafafa' }}>
+    <div style={{
+      border: '1px solid var(--color-border)',
+      borderRadius: '6px',
+      padding: '0.5rem',
+      background: 'var(--color-bg-surface)',
+    }}>
       {Object.entries(tree).map(([name, node]) => (
         <TreeNode
           key={name}
@@ -85,6 +92,13 @@ export default function FileTree({ files, onSelect, activeFile }) {
           depth={0}
         />
       ))}
+      {streaming && (
+        <>
+          <SkeletonBlock height="1rem" width="70%" style={{ margin: '0.4rem 0' }} />
+          <SkeletonBlock height="1rem" width="55%" style={{ margin: '0.4rem 0' }} />
+          <SkeletonBlock height="1rem" width="80%" style={{ margin: '0.4rem 0' }} />
+        </>
+      )}
     </div>
   )
 }

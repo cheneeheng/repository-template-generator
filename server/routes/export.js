@@ -8,12 +8,18 @@ const router = Router();
 
 const fileEntrySchema = z.object({ path: z.string(), content: z.string() });
 
+const zipSchema = z.object({
+  fileTree: z.array(fileEntrySchema).min(1).max(100),
+  projectName: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/).optional(),
+});
+
 router.post('/zip', async (req, res, next) => {
   try {
-    const { fileTree } = req.body;
+    const { fileTree, projectName } = zipSchema.parse(req.body);
+    const filename = `${projectName ?? 'project'}.zip`;
     const buffer = await zipper.createZip(fileTree);
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', 'attachment; filename="project.zip"');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (err) {
     next(err);

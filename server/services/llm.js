@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import clarinet from 'clarinet';
 import createError from 'http-errors';
-import { CURRENT_PROMPT_VERSION } from '../prompts/registry.js';
+import { CURRENT_PROMPT_VERSION, CURRENT_REFINE_VERSION } from '../prompts/registry.js';
 
 const client = new Anthropic();
 
@@ -27,19 +27,7 @@ export async function customise(files, projectName, description) {
   }
 }
 
-export async function customiseStreaming(files, projectName, description, res) {
-  const stream = client.messages.stream({
-    model: CURRENT_PROMPT_VERSION.model,
-    max_tokens: 8192,
-    system: CURRENT_PROMPT_VERSION.system,
-    messages: [
-      {
-        role: 'user',
-        content: JSON.stringify({ projectName, description, files }),
-      },
-    ],
-  });
-
+async function streamParseFileTree(stream, res) {
   const assembled = [];
   let parseError = null;
 
@@ -79,7 +67,6 @@ export async function customiseStreaming(files, projectName, description, res) {
     };
     parser.onopenarray = () => { depth++; };
     parser.onclosearray = () => { depth--; };
-    // CStream exposes 'end'/'error' only via EventEmitter .on(), not property assignment
     parser.on('error', (e) => { parseError = e; reject(e); });
     parser.on('end', () => resolve());
 
@@ -88,7 +75,6 @@ export async function customiseStreaming(files, projectName, description, res) {
       parser.write(text);
     });
 
-    // CStream has no close() — use end() to flush and fire the 'end' event
     stream.on('finalMessage', () => { parser.end(); });
     stream.on('error', reject);
   });
@@ -97,4 +83,43 @@ export async function customiseStreaming(files, projectName, description, res) {
     throw createError(500, 'LLM response was truncated or malformed');
   }
   return assembled;
+}
+
+export async function customiseStreaming(files, projectName, description, res) {
+  const stream = client.messages.stream({
+    model: CURRENT_PROMPT_VERSION.model,
+    max_tokens: 8192,
+    system: CURRENT_PROMPT_VERSION.system,
+    messages: [
+      {
+        role: 'user',
+        content: JSON.stringify({ projectName, description, files }),
+      },
+    ],
+  });
+
+  return streamParseFileTree(stream, res);
+}
+
+export async function refineStreaming(fileTree, history, instruction, res) {
+  const messages = [
+    ...history,
+    {
+      role: 'user',
+      content: buildRefinePrompt(fileTree, instruction),
+    },
+  ];
+
+  const stream = client.messages.stream({
+    model: CURRENT_REFINE_VERSION.model,
+    max_tokens: 8192,
+    system: CURRENT_REFINE_VERSION.system,
+    messages,
+  });
+
+  return streamParseFileTree(stream, res);
+}
+
+function buildRefinePrompt(fileTree, instruction) {
+  return JSON.stringify({ fileTree, instruction });
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import useStore from '../store.js'
 import { fetchTemplates } from '../api.js'
 import TemplateGrid from '../components/TemplateGrid.jsx'
+import { SkeletonBlock } from '../components/SkeletonBlock.jsx'
 import { ErrorToast } from '../components/ErrorToast.jsx'
 
 const FALLBACK = [
@@ -11,8 +12,24 @@ const FALLBACK = [
     label: 'React + Express + PostgreSQL',
     description: 'Full-stack app with React frontend, Express API, and PostgreSQL database.',
     tags: ['react', 'express', 'postgres', 'docker', 'gh-actions'],
+    files: [],
   },
 ]
+
+function SkeletonCard() {
+  return (
+    <div className="template-card template-card--skeleton">
+      <SkeletonBlock height="1.25rem" width="60%" />
+      <SkeletonBlock height="0.875rem" width="90%" style={{ marginTop: '0.5rem' }} />
+      <SkeletonBlock height="0.875rem" width="75%" style={{ marginTop: '0.25rem' }} />
+      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+        <SkeletonBlock height="1.25rem" width="3rem" />
+        <SkeletonBlock height="1.25rem" width="3rem" />
+        <SkeletonBlock height="1.25rem" width="3rem" />
+      </div>
+    </div>
+  )
+}
 
 export default function TemplatePickerPage() {
   const [templates, setTemplates] = useState(null)
@@ -38,20 +55,10 @@ export default function TemplatePickerPage() {
     <div>
       <h1>Choose a Template</h1>
       {templates === null ? (
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              style={{
-                width: '220px',
-                height: '120px',
-                background: '#eee',
-                borderRadius: '6px',
-                animation: 'pulse 1.5s ease-in-out infinite',
-              }}
-            />
+        <div className="template-grid">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <SkeletonCard key={i} />
           ))}
-          <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
         </div>
       ) : (
         <TemplateGrid templates={templates} onSelect={handleSelect} />

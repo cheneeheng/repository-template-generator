@@ -561,3 +561,33 @@ The net result: the Promise in `customiseStreaming` never resolves naturally; wh
 **Rationale:** No code currently imports from `customise.js` (confirmed by grep — zero hits). The re-export is purely defensive. Bridging `SYSTEM_PROMPT` to `CUSTOMISE_V1.system` maintains backward compatibility if any future code imports the old name.
 **Impact / Risk:** Negligible. The file is unused; the change does not affect runtime behaviour.
 **Outcome:** Applied in `server/prompts/customise.js`.
+
+---
+
+### Entry 038
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_06 through ITER_12 implementation
+
+**Context:** ITER_06 §05 specifies `atomDark` as the dark-mode syntax highlight theme in `FileViewer`. The `FileViewer` reads `document.documentElement.classList.contains('dark')` synchronously at render time. This means theme switches only take effect on the next render (e.g., when the user clicks a file or the component re-renders for another reason), not immediately on toggle.
+**Decision / Action:** Kept synchronous DOM read as specified. The alternative (subscribing to a React context or listening for `classList` mutations via MutationObserver) would add complexity that the spec explicitly avoids.
+**Rationale:** The spec says "This is a synchronous DOM read — safe in render because the class is set before React mounts." The minor lag on toggle is acceptable; re-mounting `FileViewer` by clicking a different file shows the correct theme immediately.
+**Impact / Risk:** Low. Theme mismatch is cosmetic and resolves on next interaction.
+**Outcome:** Applied in `client/src/components/FileViewer.jsx`.
+
+---
+
+### Entry 039
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_09 — rate limit handling in ConfigurePage
+
+**Context:** ITER_09 §05 states "ConfigurePage — if the generate call returns 429, the rate limit message replaces the generic error toast on the submit button area." However, `ConfigurePage` does not call `streamGenerate` — per Entry 008, it navigates to `PreviewPage` which auto-starts generation on mount. The rate limit from `/api/generate` is therefore encountered and surfaced on `PreviewPage`, not `ConfigurePage`.
+**Decision / Action:** Did not add rate limit handling to `ConfigurePage`. The error is shown on `PreviewPage` via the existing `onRateLimit` callback, which is architecturally consistent with how all stream errors are handled.
+**Rationale:** The spec's `ConfigurePage` rate limit guidance assumes a different flow where ConfigurePage calls generate directly. Adding it would require inverting the established page-flow architecture or duplicating state across pages.
+**Impact / Risk:** Low. Rate limits are surfaced correctly — just on PreviewPage instead of ConfigurePage.
+**Outcome:** No change to `ConfigurePage`. Rate limit UI is on `PreviewPage`.
