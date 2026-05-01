@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight, atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -25,7 +26,18 @@ function inferLang(path) {
 }
 
 export default function FileViewer({ file }) {
-  const isDark = document.documentElement.classList.contains('dark')
+  const [isDark, setIsDark] = useState(() =>
+    document.documentElement.classList.contains('dark')
+  )
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains('dark'))
+    })
+    observer.observe(document.documentElement, { attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+
   const highlightTheme = isDark ? atomDark : oneLight
 
   if (!file) {

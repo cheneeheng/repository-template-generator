@@ -35,7 +35,8 @@ router.post('/', refineLimiter, async (req, res) => {
     const updatedTree = await llm.refineStreaming(fileTree, safeHistory, instruction, res);
     res.write('data: ' + JSON.stringify({ type: 'done', fileTree: updatedTree }) + '\n\n');
   } catch (err) {
-    const message = err.message ?? 'Refinement failed';
+    const isContextOverflow = err.status === 400 && err.message?.includes('prompt is too long');
+    const message = isContextOverflow ? 'context_overflow' : (err.message ?? 'Refinement failed');
     res.write('data: ' + JSON.stringify({ type: 'error', message }) + '\n\n');
   }
   res.end();

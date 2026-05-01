@@ -101,6 +101,27 @@
   overflow-y: auto;
 }
 
+.tag-filter {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.tag-filter:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.tag-filter--active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
 .template-card__file-item {
   display: flex;
   align-items: center;

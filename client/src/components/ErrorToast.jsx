@@ -16,7 +16,7 @@ export function ErrorToast({ message, onDismiss }) {
         position: 'fixed',
         bottom: '1.5rem',
         right: '1.5rem',
-        background: '#c0392b',
+        background: 'var(--color-error)',
         color: '#fff',
         padding: '0.75rem 1rem',
         borderRadius: '4px',

@@ -47,7 +47,7 @@ function ConnectButton({ provider, token, onDisconnect }) {
   if (token) {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}>
-        <span style={{ color: '#2a9d2a', fontWeight: 500 }}>Connected as {label} ✓</span>
+        <span style={{ color: 'var(--color-success)', fontWeight: 500 }}>Connected as {label} ✓</span>
         <button
           onClick={onDisconnect}
           style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
@@ -110,7 +110,7 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
           value={owner}
           onChange={(e) => setOwner(e.target.value)}
           required
-          style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box', background: 'var(--color-bg-input)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
         />
       </div>
       <div style={{ marginBottom: '1rem' }}>
@@ -120,7 +120,7 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
           value={repoName}
           onChange={(e) => setRepoName(e.target.value)}
           required
-          style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box', background: 'var(--color-bg-input)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
         />
       </div>
       <div style={{ marginBottom: '1rem' }}>

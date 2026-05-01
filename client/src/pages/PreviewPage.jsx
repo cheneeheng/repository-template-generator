@@ -93,7 +93,7 @@ export default function PreviewPage() {
     setStreamState((prev) => ({ ...prev, status: 'streaming', files: [], tokenCount: 0, error: null }))
 
     streamRefine(
-      { fileTree: streamState.fileTree, history: nextHistory, instruction },
+      { fileTree: streamState.fileTree, history: history, instruction },
       {
         onFileDone(path, content) {
           setStreamState((prev) => ({
@@ -218,15 +218,17 @@ export default function PreviewPage() {
         </div>
       )}
 
-      {status === 'done' && (
+      {(status === 'done' || (status === 'streaming' && fileTree !== null)) && (
         <>
-          <RefinementPanel onSubmit={handleRefine} disabled={false} />
-          <button
-            onClick={() => navigate('/export')}
-            style={{ marginTop: '1.5rem', padding: '0.5rem 1.5rem' }}
-          >
-            Proceed to Export
-          </button>
+          <RefinementPanel onSubmit={handleRefine} disabled={status === 'streaming'} />
+          {status === 'done' && (
+            <button
+              onClick={() => navigate('/export')}
+              style={{ marginTop: '1.5rem', padding: '0.5rem 1.5rem' }}
+            >
+              Proceed to Export
+            </button>
+          )}
         </>
       )}
 
