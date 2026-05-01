@@ -1,0 +1,25 @@
+services:
+  server:
+    build:
+      context: ./server
+      target: dev
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+      - ./templates:/templates:ro
+    environment:
+      NODE_ENV: development
+      TEMPLATES_DIR: /templates
+
+  client:
+    build:
+      context: ./client
+      target: dev
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://server:3000

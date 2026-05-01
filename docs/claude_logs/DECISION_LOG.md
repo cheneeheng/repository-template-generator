@@ -435,3 +435,78 @@ Autonomous Mode decisions for this project.
 **Rationale:** The server already serialises all errors as `{ error: string }`. Surfacing this to the user is strictly better than discarding it.
 **Impact / Risk:** Low. The error path is already a failure case; the only change is a more informative message.
 **Outcome:** Applied in `client/src/api.js`.
+
+---
+
+### Entry 030
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_04 implementation
+
+**Context:** ITER_04 §04 and §05 specify GitLab token expiry detection and ExportPage 401 re-auth as new work. Entry 023 and the existing `api.js`/`ExportPage.jsx` already implement this fully: `gitlab.js` throws `createError(401, ...)` on 401, `api.js` catches HTTP 401 and throws with `err.status = 401`, and `ExportPage` calls `onAuthExpired()` which clears the token and shows the error.
+**Decision / Action:** No changes made to the GitLab 401 path — it was already correctly implemented.
+**Rationale:** The implementation from ITER_03 gap fix (Entry 023) satisfies the ITER_04 spec without additional changes.
+**Impact / Risk:** None.
+**Outcome:** Verified existing code is correct; no edit required.
+
+---
+
+### Entry 031
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_04 implementation — Docker dev stages
+
+**Context:** ITER_04 §04 specifies dev stages in both Dockerfiles using `FROM node:20-alpine` with `npm install` and `npm run dev`. The project uses `oven/bun:1-alpine` as the base image (Entry 016) and `bun` as the package manager throughout.
+**Decision / Action:** Used `oven/bun:1-alpine` as the base for dev stages, `bun install` for dependencies, and `bun run dev` as the CMD. The production stage was relabelled `AS production` to match the multi-stage structure.
+**Rationale:** Consistent with Entry 016. There is no `package-lock.json` — `npm install` would fail. Bun is the declared package manager.
+**Impact / Risk:** Low. Bun runs Express and Vite identically to Node.js npm.
+**Outcome:** Applied in `server/Dockerfile` and `client/Dockerfile`.
+
+---
+
+### Entry 032
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_04 implementation — docker-compose.dev.yml server port
+
+**Context:** ITER_04 §04 does not expose the server port in `docker-compose.dev.yml` (only the client port 5173 is mapped). The server is reached via the Vite proxy (`VITE_API_URL=http://server:3000`), so no host-level port mapping is needed for the server in dev mode.
+**Decision / Action:** Omitted `ports` from the server service in `docker-compose.dev.yml`.
+**Rationale:** The Vite proxy in the client container reaches the server container by Docker service name (`server:3000`) over the internal network. Exposing the port to the host is unnecessary and avoids a conflict with any locally running server instance.
+**Impact / Risk:** Low. Developers who want to hit the server directly in dev mode can add the port mapping locally.
+**Outcome:** Applied in `docker-compose.dev.yml`.
+
+---
+
+### Entry 033
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_05 implementation — model ID in prompt versions
+
+**Context:** ITER_05 §04 specifies `model: 'claude-sonnet-4-20250514'` in the prompt version objects. Entry 001 established that the project uses `claude-sonnet-4-6` as the model ID.
+**Decision / Action:** Used `claude-sonnet-4-6` in both `customise.v1.js` and `customise.v2.js`.
+**Rationale:** Same rationale as Entry 001. The date-suffixed ID is a snapshot from the planning doc; the runtime alias is what actually resolves.
+**Impact / Risk:** Low. Equivalent capability.
+**Outcome:** Applied in `server/prompts/versions/customise.v1.js` and `customise.v2.js`.
+
+---
+
+### Entry 034
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_05 implementation — PreviewPage streaming render
+
+**Context:** ITER_05 §05 specifies a unified `streamState` object with `status/files/fileTree/error/tokenCount` fields. The existing `PreviewPage` used separate `useState` hooks for `status`, `tokenCount`, `completedPaths`, `fileTree`, and `error`. The spec also says to show the file tree as clickable during streaming (files appear as `file_done` arrives) and to use a "files complete" counter as the primary progress indicator.
+**Decision / Action:** Replaced separate state hooks with a single `streamState` object. The streaming view renders the `FileTree`/`FileViewer` layout once any file is available, letting the user click completed files immediately. `activeFile` is kept as a separate `useState` since it is a UI selection concern, not part of the stream state.
+**Rationale:** Matches the spec's state shape exactly. Rendering the file tree during streaming (gated on `files.length > 0`) avoids a redundant separate list component. The `FileViewer` reads the file object directly from the tree click handler — no null-check needed during streaming since only completed files are clickable.
+**Impact / Risk:** Low. UX improvement: files are immediately readable as they arrive instead of waiting for the full `done` event.
+**Outcome:** Applied in `client/src/pages/PreviewPage.jsx`.
