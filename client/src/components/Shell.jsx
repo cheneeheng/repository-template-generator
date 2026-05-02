@@ -1,4 +1,5 @@
 import './Shell.css'
+import { DarkModeToggle } from './DarkModeToggle.jsx'
 
 const STEPS = ['Pick', 'Configure', 'Preview', 'Export']
 
@@ -31,6 +32,7 @@ export function Shell({ children, step }) {
       <header className="shell__nav">
         <span className="shell__logo">Scaffold</span>
         <StepBreadcrumb current={step} />
+        <DarkModeToggle />
       </header>
       <main className="shell__content">{children}</main>
     </div>

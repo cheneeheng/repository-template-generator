@@ -1,6 +1,6 @@
 # repository-template-generator
 
-Generate repository templates to bootstrap app development. Pick a template, describe your project, and either download a ready-to-use ZIP or push directly to a new GitHub or GitLab repository — with project name, description, and structure customised by Claude.
+Generate repository templates to bootstrap app development. Pick a template, describe your project, and either download a ready-to-use ZIP or push directly to a new GitHub or GitLab repository — with project name, description, and structure customised by Claude. After the initial generation, use the refinement panel to iteratively adjust the output through multi-turn conversation. Supports dark mode.
 
 ## Architecture
 
@@ -14,10 +14,11 @@ templates/                            — template definitions (template.json pe
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/health` | Liveness check |
+| GET | `/api/health` | Liveness and dependency check (returns version, uptime, Claude reachability) |
 | GET | `/api/templates` | List available templates |
 | POST | `/api/generate` | Stream a customised template via Claude (SSE / `text/event-stream`) |
-| POST | `/api/export/zip` | Download generated template as a ZIP |
+| POST | `/api/refine` | Stream incremental refinements to a previously generated template (SSE); accepts conversation history and a follow-up instruction |
+| POST | `/api/export/zip` | Download generated (or refined) template as a ZIP |
 | POST | `/api/export/repo` | Create a GitHub or GitLab repository and push the generated files |
 | GET | `/api/auth/providers` | Return which OAuth providers are configured |
 | GET | `/api/auth/:provider/start` | Redirect browser to provider OAuth consent screen |
@@ -54,6 +55,15 @@ bun run dev                   # starts on :5173
 
 Open `http://localhost:5173`.
 
+### Alternative: Docker Compose
+
+```bash
+cp server/.env.example server/.env   # then set ANTHROPIC_API_KEY
+docker compose up --build
+```
+
+The server is available on `:3000` and the client on `:5173` (served via nginx inside the client container on port 80, mapped to host 5173).
+
 ## Configuration
 
 `server/.env`
@@ -64,6 +74,11 @@ Open `http://localhost:5173`.
 | `PORT` | `3000` | Server port. |
 | `TEMPLATES_DIR` | `../templates` | Path to template definitions. |
 | `MAX_TEMPLATE_CHARS` | `200000` | Max total chars of template files sent to the LLM (~50k tokens). Templates over this limit return 422. |
+| `MAX_HISTORY_CHARS` | `600000` | Max total chars of conversation history kept for multi-turn refinement before the oldest turns are truncated. |
+| `PROMPT_VERSION` | `customise-v2` | LLM prompt variant. Set to `customise-v1` to roll back to the previous prompt. |
+| `RATE_LIMIT_WINDOW_MS` | `900000` | Rate-limit window in milliseconds (default 15 minutes). |
+| `RATE_LIMIT_GENERATE_MAX` | `10` | Max `/api/generate` requests per IP per window. |
+| `RATE_LIMIT_REFINE_MAX` | `30` | Max `/api/refine` requests per IP per window. |
 | `GITHUB_CLIENT_ID` | — | GitHub OAuth App client ID. Omit to disable GitHub repo creation. |
 | `GITHUB_CLIENT_SECRET` | — | GitHub OAuth App client secret. |
 | `GITHUB_REDIRECT_URI` | `http://localhost:3000/api/auth/github/callback` | Must match the callback URL registered in your GitHub OAuth App. |

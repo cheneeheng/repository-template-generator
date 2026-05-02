@@ -1,24 +1,32 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useStore from '../store.js'
-import { exportZip, exportRepo } from '../api.js'
+import { exportRepo } from '../api.js'
 import { ErrorToast } from '../components/ErrorToast.jsx'
 import './ExportPage.css'
 
-function DownloadZipButton({ fileTree, onError }) {
+function DownloadZipButton({ fileTree, projectName, onError }) {
   const [loading, setLoading] = useState(false)
 
   async function handleClick() {
     setLoading(true)
     try {
-      const res = await exportZip(fileTree)
+      const res = await fetch('/api/export/zip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileTree, projectName }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? 'ZIP export failed')
+      }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'project.zip'
+      a.download = `${projectName ?? 'project'}.zip`
       a.click()
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 10_000)
     } catch (err) {
       onError(err.message ?? 'Failed to export ZIP')
     } finally {
@@ -28,7 +36,7 @@ function DownloadZipButton({ fileTree, onError }) {
 
   return (
     <button onClick={handleClick} disabled={loading} style={{ padding: '0.5rem 1.5rem' }}>
-      {loading ? 'Preparing...' : 'Download ZIP'}
+      {loading ? <span className="spinner" aria-label="Loading" /> : 'Download ZIP'}
     </button>
   )
 }
@@ -39,7 +47,7 @@ function ConnectButton({ provider, token, onDisconnect }) {
   if (token) {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}>
-        <span style={{ color: '#2a9d2a', fontWeight: 500 }}>Connected as {label} ✓</span>
+        <span style={{ color: 'var(--color-success)', fontWeight: 500 }}>Connected as {label} ✓</span>
         <button
           onClick={onDisconnect}
           style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
@@ -102,7 +110,7 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
           value={owner}
           onChange={(e) => setOwner(e.target.value)}
           required
-          style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box', background: 'var(--color-bg-input)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
         />
       </div>
       <div style={{ marginBottom: '1rem' }}>
@@ -112,7 +120,7 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
           value={repoName}
           onChange={(e) => setRepoName(e.target.value)}
           required
-          style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box', background: 'var(--color-bg-input)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
         />
       </div>
       <div style={{ marginBottom: '1rem' }}>
@@ -126,7 +134,7 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
         </label>
       </div>
       <button type="submit" disabled={loading} style={{ padding: '0.5rem 1.5rem' }}>
-        {loading ? 'Creating...' : 'Create Repository'}
+        {loading ? <span className="spinner" aria-label="Loading" /> : 'Create Repository'}
       </button>
       {repoUrl && (
         <p style={{ marginTop: '1rem' }}>
@@ -195,7 +203,7 @@ export default function ExportPage() {
     <div>
       <h1>Export</h1>
       <div className="export-actions">
-        <DownloadZipButton fileTree={fileTree} onError={setError} />
+        <DownloadZipButton fileTree={fileTree} projectName={projectConfig?.projectName} onError={setError} />
         {!isZipOnly && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <ConnectButton provider={provider} token={token} onDisconnect={handleDisconnect} />

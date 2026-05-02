@@ -53,7 +53,7 @@ export default function ConfigurePage() {
   return (
     <div style={{ maxWidth: '560px' }}>
       <h1>Configure Project</h1>
-      <p style={{ color: '#666' }}>Template: {selectedTemplate.label}</p>
+      <p style={{ color: 'var(--color-text-muted)' }}>Template: {selectedTemplate.label}</p>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ display: 'block', marginBottom: '0.25rem' }}>Project Name</label>
@@ -62,7 +62,7 @@ export default function ConfigurePage() {
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
             required
-            style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box', background: 'var(--color-bg-input)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
           />
         </div>
         <div style={{ marginBottom: '1rem' }}>
@@ -71,7 +71,7 @@ export default function ConfigurePage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box', background: 'var(--color-bg-input)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
           />
         </div>
         {hasProviders && availableProviders && (

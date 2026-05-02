@@ -15,14 +15,7 @@ export default function TemplateGrid({ templates, onSelect }) {
           <button
             key={tag}
             onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-            style={{
-              padding: '0.25rem 0.75rem',
-              borderRadius: '999px',
-              border: '1px solid #ccc',
-              background: activeTag === tag ? '#333' : '#f5f5f5',
-              color: activeTag === tag ? '#fff' : '#333',
-              cursor: 'pointer',
-            }}
+            className={`tag-filter${activeTag === tag ? ' tag-filter--active' : ''}`}
           >
             {tag}
           </button>

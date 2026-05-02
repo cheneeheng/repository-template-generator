@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneLight, atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const EXT_LANG = {
   js: 'javascript',
@@ -25,18 +26,42 @@ function inferLang(path) {
 }
 
 export default function FileViewer({ file }) {
+  const [isDark, setIsDark] = useState(() =>
+    document.documentElement.classList.contains('dark')
+  )
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains('dark'))
+    })
+    observer.observe(document.documentElement, { attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+
+  const highlightTheme = isDark ? atomDark : oneLight
+
   if (!file) {
-    return <div style={{ padding: '1rem', color: '#888' }}>Select a file to view.</div>
+    return (
+      <div style={{ padding: '1rem', color: 'var(--color-text-muted)' }}>
+        Select a file to view.
+      </div>
+    )
   }
 
   return (
-    <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
-      <div style={{ background: '#f3f4f6', padding: '0.4rem 0.75rem', fontSize: '0.8rem', color: '#555', borderBottom: '1px solid #e5e7eb' }}>
+    <div style={{ border: '1px solid var(--color-border)', borderRadius: '6px', overflow: 'hidden' }}>
+      <div style={{
+        background: 'var(--color-bg-surface)',
+        padding: '0.4rem 0.75rem',
+        fontSize: '0.8rem',
+        color: 'var(--color-text-muted)',
+        borderBottom: '1px solid var(--color-border)',
+      }}>
         {file.path}
       </div>
       <SyntaxHighlighter
         language={inferLang(file.path)}
-        style={oneLight}
+        style={highlightTheme}
         customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.85rem' }}
         showLineNumbers
       >

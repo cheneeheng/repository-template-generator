@@ -561,3 +561,108 @@ The net result: the Promise in `customiseStreaming` never resolves naturally; wh
 **Rationale:** No code currently imports from `customise.js` (confirmed by grep — zero hits). The re-export is purely defensive. Bridging `SYSTEM_PROMPT` to `CUSTOMISE_V1.system` maintains backward compatibility if any future code imports the old name.
 **Impact / Risk:** Negligible. The file is unused; the change does not affect runtime behaviour.
 **Outcome:** Applied in `server/prompts/customise.js`.
+
+---
+
+### Entry 038
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_06 through ITER_12 implementation
+
+**Context:** ITER_06 §05 specifies `atomDark` as the dark-mode syntax highlight theme in `FileViewer`. The `FileViewer` reads `document.documentElement.classList.contains('dark')` synchronously at render time. This means theme switches only take effect on the next render (e.g., when the user clicks a file or the component re-renders for another reason), not immediately on toggle.
+**Decision / Action:** Kept synchronous DOM read as specified. The alternative (subscribing to a React context or listening for `classList` mutations via MutationObserver) would add complexity that the spec explicitly avoids.
+**Rationale:** The spec says "This is a synchronous DOM read — safe in render because the class is set before React mounts." The minor lag on toggle is acceptable; re-mounting `FileViewer` by clicking a different file shows the correct theme immediately.
+**Impact / Risk:** Low. Theme mismatch is cosmetic and resolves on next interaction.
+**Outcome:** Applied in `client/src/components/FileViewer.jsx`.
+
+---
+
+### Entry 039
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_09 — rate limit handling in ConfigurePage
+
+**Context:** ITER_09 §05 states "ConfigurePage — if the generate call returns 429, the rate limit message replaces the generic error toast on the submit button area." However, `ConfigurePage` does not call `streamGenerate` — per Entry 008, it navigates to `PreviewPage` which auto-starts generation on mount. The rate limit from `/api/generate` is therefore encountered and surfaced on `PreviewPage`, not `ConfigurePage`.
+**Decision / Action:** Did not add rate limit handling to `ConfigurePage`. The error is shown on `PreviewPage` via the existing `onRateLimit` callback, which is architecturally consistent with how all stream errors are handled.
+**Rationale:** The spec's `ConfigurePage` rate limit guidance assumes a different flow where ConfigurePage calls generate directly. Adding it would require inverting the established page-flow architecture or duplicating state across pages.
+**Impact / Risk:** Low. Rate limits are surfaced correctly — just on PreviewPage instead of ConfigurePage.
+**Outcome:** No change to `ConfigurePage`. Rate limit UI is on `PreviewPage`.
+
+---
+
+### Entry 040
+
+**Type:** Bug Fix
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_06–12 audit
+
+**Context:** `routes/refine.js` wraps `llm.refineStreaming` in a try/catch that sends the error via an SSE event. Anthropic's context-overflow error (`err.status === 400`, message contains "prompt is too long") is caught here — after SSE headers are already flushed — so `errorHandler` cannot return a 422 JSON response. The raw Anthropic SDK error message was being sent as `{ type: 'error', message: "<SDK text>" }`. The frontend checks `error === 'context_overflow'` which never matched, so the actionable message (ITER_08 spec) was never shown.
+**Decision / Action:** Added detection in the catch block: `isContextOverflow = err.status === 400 && err.message?.includes('prompt is too long')`. When true, sends `message: 'context_overflow'` in the SSE error event, matching what `streamRefine.js` passes to `onError` and what `PreviewPage` checks.
+**Rationale:** The `errorHandler` middleware path (422 JSON) only works pre-`flushHeaders`. Post-flush errors must go through in-band SSE events. The fix mirrors the same detection logic already in `errorHandler.js` but adapted to the in-band path.
+**Impact / Risk:** Low. Only affects the context overflow error path on refine, which is a rare edge case.
+**Outcome:** Applied in `server/routes/refine.js`.
+
+---
+
+### Entry 041
+
+**Type:** Bug Fix
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_06–12 audit
+
+**Context:** Entry 038 deferred a MutationObserver fix for `FileViewer` theme reactivity, accepting that the syntax highlighter theme would be stale until the next render. On re-examination, the `DarkModeToggle` calls `setDark` (re-renders only the toggle) and `applyTheme` (mutates DOM class). `FileViewer` is a sibling subtree — it has no render trigger when the toggle fires. Users see the wrong highlight theme until they click a file. This is a visible bug, not a cosmetic edge case.
+**Decision / Action:** Added a `useState`/`MutationObserver` pair in `FileViewer`: initial state reads the DOM class; `useEffect` registers a `MutationObserver` on `document.documentElement` filtering `attributeFilter: ['class']`. On class change, re-reads and sets `isDark`. Observer is cleaned up on unmount.
+**Rationale:** Supersedes Entry 038's deferral. The MutationObserver approach is low-overhead (fires only on class attribute changes), does not require React context, and is the minimal correct fix.
+**Impact / Risk:** Low. One observer per mounted `FileViewer` instance; disconnected on unmount.
+**Outcome:** Applied in `client/src/components/FileViewer.jsx`.
+
+---
+
+### Entry 042
+
+**Type:** Gap Fix
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_06–12 audit
+
+**Context:** ITER_07 spec: "RefinementPanel is rendered below the FileTree/FileViewer split on PreviewPage, visible only when `streamState.status === 'done'` or `'streaming'`." The implementation showed the panel only when `status === 'done'`. During a refinement pass (status returns to `'streaming'`), the panel disappeared. The `disabled` prop was hardcoded `false` rather than computed from `status`.
+**Decision / Action:** Changed the condition to `(status === 'done' || (status === 'streaming' && fileTree !== null))`. The `fileTree !== null` guard prevents the panel from appearing during the initial generation (when `fileTree` hasn't been set yet). `disabled` is now `status === 'streaming'`. The "Proceed to Export" button is also wrapped in `{status === 'done' && ...}` since it only makes sense when generation is complete.
+**Rationale:** Showing the panel during refinement streaming (disabled) gives the user visual continuity — they can see the input they submitted and know the panel will return to active when the pass completes. Hiding it creates a confusing "where did the refine panel go?" moment.
+**Impact / Risk:** Low. UI-only change; no state or API changes.
+**Outcome:** Applied in `client/src/pages/PreviewPage.jsx`.
+
+---
+
+### Entry 043
+
+**Type:** Gap Fix
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_06–12 audit
+
+**Context:** ITER_06 §05: "Any component currently using hardcoded colours must be updated to use the corresponding variable." Several components had hardcoded hex values that broke dark mode: `TemplateGrid` tag filter buttons (`#ccc`, `#333`, `#f5f5f5`), `ConfigurePage` template label (`#666`) and form inputs (no background/color), `ErrorToast` background (`#c0392b`), `ExportPage` connected state (`#2a9d2a`) and form inputs (no background/color).
+**Decision / Action:** Replaced all hardcoded colors with CSS variables. `TemplateGrid` tag filter buttons were extracted to `.tag-filter` / `.tag-filter--active` CSS classes in `TemplateGrid.css` using `--color-border`, `--color-bg-surface`, `--color-text-muted`, and `--color-accent`. Form inputs in `ConfigurePage` and `ExportPage` were given `background: var(--color-bg-input)`, `color: var(--color-text)`, `border: 1px solid var(--color-border)`.
+**Rationale:** Without these fixes, dark mode leaves white input boxes, grey tag buttons, and a light-red toast on a dark background — all hard to read or visually jarring.
+**Impact / Risk:** Low. Visual-only changes; no logic changes.
+**Outcome:** Applied in `TemplateGrid.jsx`, `TemplateGrid.css`, `ConfigurePage.jsx`, `ErrorToast.jsx`, `ExportPage.jsx`.
+
+---
+
+### Entry 044
+
+**Type:** Bug Fix
+**Mode:** Autonomous
+**Timestamp:** 2026-05-01T00:00:00Z
+**Task:** ITER_06–12 audit — consecutive user messages in refinement
+
+**Context:** `PreviewPage.jsx` `handleRefine` called `streamRefine` with `history: nextHistory`, where `nextHistory = truncateHistory([...history, userTurn])` already contains the current user turn as its last element. The server's `refineStreaming` then appended another user turn (`buildRefinePrompt(fileTree, instruction)`), resulting in two consecutive `{ role: 'user' }` messages in the Anthropic API call. Anthropic requires alternating user/assistant roles — this caused every `/api/refine` call to fail with a role-ordering validation error.
+**Decision / Action:** Changed the `streamRefine` call from `history: nextHistory` to `history: history` (the previous history state before the current instruction was added). The server adds the single authoritative user turn that includes both the fileTree and the instruction. The local `setHistory(nextHistory)` state update (which adds the user turn for subsequent turns' context) is unaffected.
+**Rationale:** `nextHistory` is the correct local state for tracking conversation history. However, it must not be sent to the API because the server always appends its own user turn. Sending the pre-existing `history` gives the server a valid alternating sequence. For the first refinement: `history = []`, server adds one user turn → valid. For subsequent turns: `history = [user1, assistant1, ...]`, server adds the new user turn → alternates correctly.
+**Impact / Risk:** Low. Minimal, targeted fix. All prior refinement calls were silently failing; this restores correct behavior.
+**Outcome:** Applied in `client/src/pages/PreviewPage.jsx`.

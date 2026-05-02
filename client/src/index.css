@@ -1,0 +1,86 @@
+:root {
+  --color-bg:          #ffffff;
+  --color-bg-surface:  #f5f5f5;
+  --color-bg-input:    #ffffff;
+  --color-border:      #e0e0e0;
+  --color-text:        #111111;
+  --color-text-muted:  #666666;
+  --color-accent:      #2563eb;
+  --color-accent-hover:#1d4ed8;
+  --color-error:       #dc2626;
+  --color-success:     #16a34a;
+
+  --shimmer-base:      #e5e7eb;
+  --shimmer-highlight: #f3f4f6;
+}
+
+:root.dark {
+  --color-bg:          #0f172a;
+  --color-bg-surface:  #1e293b;
+  --color-bg-input:    #1e293b;
+  --color-border:      #334155;
+  --color-text:        #f1f5f9;
+  --color-text-muted:  #94a3b8;
+  --color-accent:      #3b82f6;
+  --color-accent-hover:#60a5fa;
+  --color-error:       #f87171;
+  --color-success:     #4ade80;
+
+  --shimmer-base:      #1e293b;
+  --shimmer-highlight: #334155;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--shimmer-base)      0%,
+    var(--shimmer-highlight) 50%,
+    var(--shimmer-base)      100%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer,
+  .spinner {
+    animation: none;
+  }
+  .shimmer {
+    background: var(--shimmer-base);
+  }
+}
