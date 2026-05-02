@@ -69,7 +69,7 @@ export async function scanTemplates() {
 router.get('/', async (req, res, next) => {
   try {
     const templates = await scanTemplates();
-    res.json({ templates });
+    res.json(templates);
   } catch (err) {
     next(err);
   }
