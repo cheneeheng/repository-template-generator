@@ -4,9 +4,11 @@ import fs from 'fs/promises';
 import createError from 'http-errors';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __serverDir = path.resolve(__dirname, '..');
 
-export const TEMPLATES_DIR =
-  process.env.TEMPLATES_DIR ?? path.resolve(__dirname, '../../templates');
+export const TEMPLATES_DIR = process.env.TEMPLATES_DIR
+  ? path.resolve(__serverDir, process.env.TEMPLATES_DIR)
+  : path.resolve(__serverDir, '../templates');
 
 const MAX_TEMPLATE_CHARS = parseInt(process.env.MAX_TEMPLATE_CHARS ?? '200000', 10);
 

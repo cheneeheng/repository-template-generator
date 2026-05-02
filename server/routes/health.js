@@ -1,18 +1,15 @@
 import { Router } from 'express';
 import { access } from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { scanTemplates } from './templates.js';
+import { TEMPLATES_DIR } from '../services/assembler.js';
 
 const router = Router();
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 router.get('/', async (req, res) => {
   const checks = {};
   let healthy = true;
 
-  const templatesDir = process.env.TEMPLATES_DIR
-    ?? path.resolve(__dirname, '../../../templates');
+  const templatesDir = TEMPLATES_DIR;
 
   try {
     await access(templatesDir);
