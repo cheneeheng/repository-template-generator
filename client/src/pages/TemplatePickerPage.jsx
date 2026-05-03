@@ -5,6 +5,7 @@ import { fetchTemplates } from '../api.js'
 import TemplateGrid from '../components/TemplateGrid.jsx'
 import { SkeletonBlock } from '../components/SkeletonBlock.jsx'
 import { ErrorToast } from '../components/ErrorToast.jsx'
+import { useAppConfig } from '../context/AppConfigContext.jsx'
 
 const FALLBACK = [
   {
@@ -36,6 +37,7 @@ export default function TemplatePickerPage() {
   const [error, setError] = useState(null)
   const setSelectedTemplate = useStore((s) => s.setSelectedTemplate)
   const navigate = useNavigate()
+  const { llmEnabled } = useAppConfig()
 
   useEffect(() => {
     fetchTemplates()
@@ -54,6 +56,13 @@ export default function TemplatePickerPage() {
   return (
     <div>
       <h1>Choose a Template</h1>
+      {!llmEnabled && (
+        <div className="banner banner--warning" role="status">
+          <strong>LLM unavailable</strong> — templates will be returned without customisation.
+          Placeholder values like <code>{'{{PROJECT_NAME}}'}</code> will not be replaced.
+          To enable full customisation, set <code>ANTHROPIC_API_KEY</code> on the server.
+        </div>
+      )}
       {templates === null ? (
         <div className="template-grid">
           {[1, 2, 3, 4, 5, 6].map((i) => (

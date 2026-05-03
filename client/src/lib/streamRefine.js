@@ -17,6 +17,14 @@ export async function streamRefine({ fileTree, history, instruction }, callbacks
     return;
   }
 
+  if (response.status === 503) {
+    const { error } = await response.json();
+    if (error === 'llm_unavailable') {
+      callbacks.onError?.('Refinement is not available in bypass mode.');
+      return;
+    }
+  }
+
   if (!response.ok) {
     try {
       const err = await response.json();

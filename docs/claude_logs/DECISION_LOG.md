@@ -666,3 +666,33 @@ The net result: the Promise in `customiseStreaming` never resolves naturally; wh
 **Rationale:** `nextHistory` is the correct local state for tracking conversation history. However, it must not be sent to the API because the server always appends its own user turn. Sending the pre-existing `history` gives the server a valid alternating sequence. For the first refinement: `history = []`, server adds one user turn → valid. For subsequent turns: `history = [user1, assistant1, ...]`, server adds the new user turn → alternates correctly.
 **Impact / Risk:** Low. Minimal, targeted fix. All prior refinement calls were silently failing; this restores correct behavior.
 **Outcome:** Applied in `client/src/pages/PreviewPage.jsx`.
+
+---
+
+### Entry 045
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-03T00:00:00Z
+**Task:** ITER-13 — LLM bypass mode
+
+**Context:** ITER_13 §04 shows `LLM_ENABLED` imported as both `* as llm` and a named `{ LLM_ENABLED }` in `refine.js`, which results in two import statements from the same module.
+**Decision / Action:** Used `llm.LLM_ENABLED` via the existing `* as llm` import, avoiding the duplicate named import.
+**Rationale:** Minimal change bias; one import per module is cleaner and follows the existing pattern in refine.js.
+**Impact / Risk:** None — same exported value, same runtime behaviour.
+**Outcome:** Applied in `server/routes/refine.js`.
+
+---
+
+### Entry 046
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-03T00:00:00Z
+**Task:** ITER-13 — bypass badge visibility in PreviewPage
+
+**Context:** ITER_13 §05 places the "Raw template" badge next to the page title, which reads "Generating..." during streaming and "Preview" when done. The spec doesn't address whether the badge should appear during streaming.
+**Decision / Action:** Show the badge only when `status !== 'streaming'` — i.e., the title reads "Preview".
+**Rationale:** A "Raw template" badge on "Generating..." is confusing before any files are visible. The badge is meaningful once the viewer is interactive.
+**Impact / Risk:** Minor UX difference from spec. Badge appears at the same moment the file viewer is useful.
+**Outcome:** Applied in `client/src/pages/PreviewPage.jsx`.

@@ -3,6 +3,8 @@ import clarinet from 'clarinet';
 import createError from 'http-errors';
 import { CURRENT_PROMPT_VERSION, CURRENT_REFINE_VERSION } from '../prompts/registry.js';
 
+export const LLM_ENABLED = !!process.env.ANTHROPIC_API_KEY;
+
 const client = new Anthropic();
 
 export async function customise(files, projectName, description) {
@@ -86,6 +88,17 @@ async function streamParseFileTree(stream, res) {
 }
 
 export async function customiseStreaming(files, projectName, description, res) {
+  if (!LLM_ENABLED) {
+    for (const file of files) {
+      res.write('data: ' + JSON.stringify({
+        type: 'file_done',
+        path: file.path,
+        content: file.content,
+      }) + '\n\n');
+    }
+    return files;
+  }
+
   const stream = client.messages.stream({
     model: CURRENT_PROMPT_VERSION.model,
     max_tokens: 8192,
