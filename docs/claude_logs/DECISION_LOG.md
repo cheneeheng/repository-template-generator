@@ -696,3 +696,80 @@ The net result: the Promise in `customiseStreaming` never resolves naturally; wh
 **Rationale:** A "Raw template" badge on "Generating..." is confusing before any files are visible. The badge is meaningful once the viewer is interactive.
 **Impact / Risk:** Minor UX difference from spec. Badge appears at the same moment the file viewer is useful.
 **Outcome:** Applied in `client/src/pages/PreviewPage.jsx`.
+
+---
+
+### Entry 047
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-03T00:00:00Z
+**Task:** ITER_14–16 — package manager
+
+Use bun instead of npm for all package installs (user requested). CI workflow uses `oven-sh/setup-bun@v2` + `bun install --frozen-lockfile`.
+
+---
+
+### Entry 048
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-03T00:00:00Z
+**Task:** ITER_14 — revokeToken best-effort at service level
+
+Added try/catch to `revokeToken` in oauth.js. Plan specifies best-effort (no throw); existing impl propagated errors. Route's catch is now redundant but harmless.
+
+---
+
+### Entry 049
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-03T00:00:00Z
+**Task:** ITER_14/16 — optional budget param for truncateHistory
+
+Both server and client `truncateHistory` updated to accept optional `budget` param. Required to match plan test signatures.
+
+---
+
+### Entry 050
+
+**Type:** Bug Fix
+**Mode:** Autonomous
+**Timestamp:** 2026-05-03T00:00:00Z
+**Task:** ITER_16 — DarkModeToggle mount-time DOM sync
+
+Added `useEffect(() => { document.documentElement.classList.toggle('dark', dark) }, [dark])`. Without this, plan test checking DOM class after render fails because component never synced initial state to DOM.
+
+---
+
+### Entry 051
+
+**Type:** Bug Fix
+**Mode:** Autonomous
+**Timestamp:** 2026-05-03T00:00:00Z
+**Task:** ITER_16 — ConfigurePage label accessibility
+
+Added `htmlFor`/`id` pairs on Project Name and Description fields. Required for `getByRole('textbox', { name: /project name/i })` query to work in tests.
+
+---
+
+### Entry 052
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-03T00:00:00Z
+**Task:** ITER_16 — Page tests use Zustand store seeding
+
+Plan passed data via MemoryRouter `initialEntries` state; actual pages read from Zustand store. Tests pre-seed with `useStore.setState()` in `beforeEach`, reset in `afterEach`.
+
+---
+
+### Entry 053
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-03T00:00:00Z
+**Task:** ITER_16 — Tests adapted to actual implementations
+
+Plan's ConfigurePage test expected direct `/api/generate` calls; actual impl delegates to PreviewPage. Plan's assembler test used Dirent-style mocks; actual `assembler.js` uses `recursive: true` returning string paths. Tests rewritten to match actual behavior.

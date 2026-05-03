@@ -14,6 +14,11 @@ export function DarkModeToggle() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches
   })
 
+  // Sync initial state to DOM class on mount
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark)
+  }, [dark])
+
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) return
