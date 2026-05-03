@@ -23,6 +23,13 @@ const refineSchema = z.object({
 });
 
 router.post('/', refineLimiter, async (req, res) => {
+  if (!llm.LLM_ENABLED) {
+    return res.status(503).json({
+      error: 'llm_unavailable',
+      message: 'Refinement requires an Anthropic API key. The server is running in bypass mode.',
+    });
+  }
+
   const { fileTree, history, instruction } = refineSchema.parse(req.body);
   const safeHistory = truncateHistory(history);
 

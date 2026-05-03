@@ -8,6 +8,7 @@ import { RefinementPanel } from '../components/RefinementPanel.jsx'
 import { streamGenerate } from '../lib/streamGenerate.js'
 import { streamRefine } from '../lib/streamRefine.js'
 import { truncateHistory } from '../lib/truncateHistory.js'
+import { useAppConfig } from '../context/AppConfigContext.jsx'
 import './PreviewPage.css'
 
 export default function PreviewPage() {
@@ -27,6 +28,7 @@ export default function PreviewPage() {
   const [activeFile, setActiveFile] = useState(null)
   const [history, setHistory] = useState([])
 
+  const { llmEnabled } = useAppConfig()
   const started = useRef(false)
   const readerRef = useRef(null)
 
@@ -169,7 +171,14 @@ export default function PreviewPage() {
 
   return (
     <div>
-      <h1>{status === 'streaming' ? 'Generating...' : 'Preview'}</h1>
+      <h1>
+        {status === 'streaming' ? 'Generating...' : 'Preview'}
+        {status !== 'streaming' && !llmEnabled && (
+          <span className="badge badge--neutral" aria-label="LLM bypass mode active" style={{ marginLeft: '0.75rem' }}>
+            Raw template
+          </span>
+        )}
+      </h1>
       {status === 'streaming' && (
         <div style={{ marginBottom: '1rem' }}>
           <div
@@ -220,7 +229,11 @@ export default function PreviewPage() {
 
       {(status === 'done' || (status === 'streaming' && fileTree !== null)) && (
         <>
-          <RefinementPanel onSubmit={handleRefine} disabled={status === 'streaming'} />
+          <RefinementPanel
+            onSubmit={handleRefine}
+            disabled={status === 'streaming' || !llmEnabled}
+            disabledReason={!llmEnabled ? 'Refinement requires an Anthropic API key.' : undefined}
+          />
           {status === 'done' && (
             <button
               onClick={() => navigate('/export')}

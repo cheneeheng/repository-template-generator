@@ -11,6 +11,8 @@ import generateRouter from './routes/generate.js';
 import refineRouter from './routes/refine.js';
 import exportRouter from './routes/export.js';
 import authRouter from './routes/auth.js';
+import configRouter from './routes/config.js';
+import { LLM_ENABLED } from './services/llm.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,6 +29,7 @@ app.use('/api/generate', generateRouter);
 app.use('/api/refine', refineRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/config', configRouter);
 
 app.use(errorHandler);
 
@@ -50,8 +53,15 @@ app.listen(PORT, async () => {
 └─────────────────────────────────────────┘
 `);
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('[startup] ERROR: ANTHROPIC_API_KEY is not set. Generation will fail.');
+  if (!LLM_ENABLED) {
+    console.warn(`
+╔══════════════════════════════════════════╗
+║  ⚠  BYPASS MODE — LLM DISABLED          ║
+║  ANTHROPIC_API_KEY is not set.           ║
+║  Templates will be returned unchanged.  ║
+║  Refinement is disabled.                 ║
+╚══════════════════════════════════════════╝
+`);
   }
   if (templates.length === 0) {
     console.warn('[startup] WARNING: No valid templates found. Check TEMPLATES_DIR.');
