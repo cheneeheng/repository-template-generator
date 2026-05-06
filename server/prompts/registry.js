@@ -8,7 +8,7 @@ const VERSIONS = {
   'refine-v1':    REFINE_V1,
 };
 
-const ACTIVE_KEY = process.env.PROMPT_VERSION ?? 'customise-v2';
+const ACTIVE_KEY = process.env.PROMPT_VERSION || 'customise-v2';
 
 export const CURRENT_PROMPT_VERSION = VERSIONS[ACTIVE_KEY];
 

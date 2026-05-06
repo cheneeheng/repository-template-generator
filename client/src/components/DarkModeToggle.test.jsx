@@ -53,16 +53,30 @@ describe('DarkModeToggle', () => {
 
   it('OS scheme change is ignored when explicit preference is stored', () => {
     localStorage.setItem('color-scheme', 'light');
-    let changeHandler;
     const mq = {
-      matches: false,
-      addEventListener: vi.fn((_, h) => { changeHandler = h; }),
+      matches: true,
+      addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     };
     window.matchMedia = vi.fn().mockReturnValue(mq);
 
     render(<DarkModeToggle />);
-    act(() => changeHandler({ matches: true }));
+    // Component returns early from useEffect when localStorage has explicit preference,
+    // so no change listener is registered and OS preference has no effect.
+    expect(mq.addEventListener).not.toHaveBeenCalled();
     expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
+  it('removes OS scheme change listener on unmount', () => {
+    const mq = {
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    window.matchMedia = vi.fn().mockReturnValue(mq);
+
+    const { unmount } = render(<DarkModeToggle />);
+    unmount();
+    expect(mq.removeEventListener).toHaveBeenCalled();
   });
 });

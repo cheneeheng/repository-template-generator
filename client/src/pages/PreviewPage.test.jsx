@@ -55,7 +55,7 @@ describe('PreviewPage', () => {
       { type: 'done', fileTree: [{ path: 'README.md', content: '# App' }] },
     ])));
     renderPage();
-    await waitFor(() => expect(screen.getByText('README.md')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('README.md').length).toBeGreaterThan(0));
   });
 
   it('shows refinement panel after done', async () => {
@@ -100,9 +100,75 @@ describe('PreviewPage', () => {
     expect(screen.getByText('home')).toBeInTheDocument();
   });
 
+  it('shows rate limit message on 429', async () => {
+    server.use(http.post('/api/generate', () =>
+      new HttpResponse(null, {
+        status: 429,
+        headers: { 'RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 60) },
+      })
+    ));
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/request limit/i)
+    );
+  });
+
   it('redirects to / when store has no selected template', () => {
     useStore.setState({ selectedTemplate: null, projectConfig: null });
     renderPage();
     expect(screen.getByText('home')).toBeInTheDocument();
+  });
+
+  it('submits a refinement instruction and shows updated file', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/refine', () => sseStream([
+        { type: 'file_done', path: 'a.ts', content: 'const x: number = 1' },
+        { type: 'done', fileTree: [{ path: 'a.ts', content: 'const x: number = 1' }] },
+      ])),
+    );
+    renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'convert to TypeScript');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => expect(screen.getAllByText('a.ts').length).toBeGreaterThan(0));
+  });
+
+  it('shows error alert when refinement stream returns an error', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/refine', () => sseStream([
+        { type: 'error', message: 'LLM unavailable' },
+      ])),
+    );
+    renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'make it TypeScript');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => expect(screen.getByText('LLM unavailable')).toBeInTheDocument());
+  });
+
+  it('shows rate limit message when refinement returns 429', async () => {
+    const resetTime = String(Math.floor(Date.now() / 1000) + 900);
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/refine', () =>
+        new HttpResponse(null, {
+          status: 429,
+          headers: { 'RateLimit-Reset': resetTime },
+        })
+      ),
+    );
+    renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'make it TypeScript');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
   });
 });

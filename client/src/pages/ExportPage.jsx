@@ -102,10 +102,11 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
     <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem', maxWidth: '480px' }}>
       <h2>Create Repository</h2>
       <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.25rem' }}>
+        <label htmlFor="repo-owner" style={{ display: 'block', marginBottom: '0.25rem' }}>
           {provider === 'gitlab' ? 'Namespace' : 'Org / User'}
         </label>
         <input
+          id="repo-owner"
           type="text"
           value={owner}
           onChange={(e) => setOwner(e.target.value)}
@@ -114,8 +115,9 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
         />
       </div>
       <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.25rem' }}>Repository Name</label>
+        <label htmlFor="repo-name" style={{ display: 'block', marginBottom: '0.25rem' }}>Repository Name</label>
         <input
+          id="repo-name"
           type="text"
           value={repoName}
           onChange={(e) => setRepoName(e.target.value)}

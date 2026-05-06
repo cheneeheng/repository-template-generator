@@ -6,10 +6,12 @@ __pycache__/
 *.pyc
 *.egg-info/
 .coverage
+coverage/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 node_modules/
+package-lock.json
 .svelte-kit/
 dist/
 build/

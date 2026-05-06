@@ -1,4 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
+import { server } from '../tests/mswServer.js';
+import { http, HttpResponse } from 'msw';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AppConfigProvider } from '../context/AppConfigContext.jsx';
@@ -57,5 +59,27 @@ describe('ConfigurePage', () => {
     useStore.setState({ selectedTemplate: null });
     renderPage();
     expect(screen.getByText('home')).toBeInTheDocument();
+  });
+
+  it('shows and allows changing provider when github is configured', async () => {
+    server.use(http.get('/api/auth/providers', () =>
+      HttpResponse.json({ github: true, gitlab: false })
+    ));
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText(/github/i)).toBeInTheDocument());
+    const githubRadio = screen.getByLabelText(/github/i);
+    expect(githubRadio).toBeInTheDocument();
+    await userEvent.click(githubRadio);
+    expect(githubRadio).toBeChecked();
+  });
+
+  it('falls back to ZIP-only when providers fetch fails', async () => {
+    server.use(http.get('/api/auth/providers', () => HttpResponse.error()));
+    renderPage();
+    // Button becomes enabled once the error fallback sets availableProviders
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /generate/i })).not.toBeDisabled()
+    );
+    expect(screen.queryByLabelText(/github/i)).not.toBeInTheDocument();
   });
 });

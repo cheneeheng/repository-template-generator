@@ -26,6 +26,69 @@ function makeRes() {
   };
 }
 
+describe('customise — non-streaming', () => {
+  it('returns parsed JSON from model response', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sk-test');
+    vi.resetModules();
+
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    Anthropic.mockImplementation(() => ({
+      messages: {
+        create: vi.fn().mockResolvedValue({
+          content: [{ text: JSON.stringify([{ path: 'a.js', content: 'x' }]) }],
+        }),
+        stream: vi.fn(),
+      },
+    }));
+
+    const { customise } = await import('./llm.js');
+    const result = await customise([], 'app', 'desc');
+    expect(result).toEqual([{ path: 'a.js', content: 'x' }]);
+  });
+
+  it('throws on non-JSON model response', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sk-test');
+    vi.resetModules();
+
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    Anthropic.mockImplementation(() => ({
+      messages: {
+        create: vi.fn().mockResolvedValue({ content: [{ text: 'not json' }] }),
+        stream: vi.fn(),
+      },
+    }));
+
+    const { customise } = await import('./llm.js');
+    await expect(customise([], 'app', 'desc')).rejects.toThrow('non-JSON');
+  });
+});
+
+describe('refineStreaming', () => {
+  it('parses streamed file tree and returns updated files', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sk-test');
+    vi.resetModules();
+
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    Anthropic.mockImplementation(() => ({
+      messages: {
+        stream: vi.fn().mockReturnValue(
+          makeStream(['[{"path":"a.ts","content":"const x: number = 1"}]'])
+        ),
+        create: vi.fn(),
+      },
+    }));
+
+    const { refineStreaming } = await import('./llm.js');
+    const res = makeRes();
+    const result = await refineStreaming([], [], 'convert to TypeScript', res);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].path).toBe('a.ts');
+    const events = res._writes.map(w => JSON.parse(w.replace(/^data: /, '').trim()));
+    expect(events.filter(e => e.type === 'file_done')).toHaveLength(1);
+  });
+});
+
 describe('customiseStreaming — bypass mode', () => {
   it('emits file_done for each file without calling Anthropic', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', '');
@@ -49,7 +112,7 @@ describe('customiseStreaming — normal path', () => {
     vi.resetModules();
 
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const mockStream = vi.fn().mockReturnValue(
+    const mockStream = vi.fn().mockImplementation(() =>
       makeStream([
         '[{"path":"README.md","conte',
         'nt":"# hello"},{"path":"index.js","content":"const x=1"}]',

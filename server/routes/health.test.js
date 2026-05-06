@@ -1,34 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import * as fsPromises from 'fs/promises';
+import { createApp } from '../app.js';
 
 vi.mock('fs/promises');
+vi.mock('../services/llm.js', () => ({
+  LLM_ENABLED: false,
+  customiseStreaming: vi.fn(),
+  refineStreaming: vi.fn(),
+}));
+
+const app = createApp();
+const request = supertest(app);
 
 describe('GET /api/health', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.resetModules();
+    vi.resetAllMocks();
   });
 
   it('returns 200 ok when key set and templates exist', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'sk-test');
     vi.stubEnv('TEMPLATES_DIR', '/tmp/templates');
     fsPromises.access.mockResolvedValue(undefined);
-    // scanTemplates calls readdir with withFileTypes: true → returns Dirent-like objects
-    fsPromises.readdir.mockResolvedValue([
-      { name: 'react-express', isDirectory: () => true },
-    ]);
-    // readFile for template.json
+    fsPromises.readdir
+      .mockResolvedValueOnce([{ name: 'react-express', isDirectory: () => true }])
+      .mockResolvedValueOnce([{ name: 'README.md', isDirectory: () => false }]);
     fsPromises.readFile.mockResolvedValueOnce(
       JSON.stringify({ id: 'react-express', label: 'R', description: 'D', tags: ['react'] })
     );
-    // getFilePaths walk readdir
-    fsPromises.readdir.mockResolvedValueOnce([
-      { name: 'README.md', isDirectory: () => false },
-    ]);
 
-    const { createApp } = await import('../app.js');
-    const res = await supertest(createApp()).get('/api/health');
+    const res = await request.get('/api/health');
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(res.body.checks.anthropicKey).toBe('configured');
@@ -40,8 +41,7 @@ describe('GET /api/health', () => {
     fsPromises.access.mockResolvedValue(undefined);
     fsPromises.readdir.mockResolvedValue([]);
 
-    const { createApp } = await import('../app.js');
-    const res = await supertest(createApp()).get('/api/health');
+    const res = await request.get('/api/health');
     expect(res.status).toBe(503);
     expect(res.body.ok).toBe(false);
     expect(res.body.checks.anthropicKey).toBe('missing');
@@ -53,8 +53,7 @@ describe('GET /api/health', () => {
     fsPromises.access.mockRejectedValueOnce(new Error('ENOENT'));
     fsPromises.readdir.mockResolvedValue([]);
 
-    const { createApp } = await import('../app.js');
-    const res = await supertest(createApp()).get('/api/health');
+    const res = await request.get('/api/health');
     expect(res.status).toBe(503);
     expect(res.body.ok).toBe(false);
   });

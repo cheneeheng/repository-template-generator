@@ -1,21 +1,30 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import supertest from 'supertest';
+import { createApp } from '../app.js';
+
+let _llmEnabled = false;
+vi.mock('../services/llm.js', () => ({
+  get LLM_ENABLED() { return _llmEnabled; },
+  customiseStreaming: vi.fn(),
+  refineStreaming: vi.fn(),
+}));
+
+const app = createApp();
+const request = supertest(app);
 
 describe('GET /api/config', () => {
-  it('returns llmEnabled: true when ANTHROPIC_API_KEY is set', async () => {
-    vi.stubEnv('ANTHROPIC_API_KEY', 'sk-test');
-    vi.resetModules();
-    const { createApp } = await import('../app.js');
-    const res = await supertest(createApp()).get('/api/config');
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns llmEnabled: true when LLM is enabled', async () => {
+    _llmEnabled = true;
+    const res = await request.get('/api/config');
     expect(res.status).toBe(200);
     expect(res.body.llmEnabled).toBe(true);
   });
 
-  it('returns llmEnabled: false when ANTHROPIC_API_KEY is absent', async () => {
-    vi.stubEnv('ANTHROPIC_API_KEY', '');
-    vi.resetModules();
-    const { createApp } = await import('../app.js');
-    const res = await supertest(createApp()).get('/api/config');
+  it('returns llmEnabled: false when LLM is disabled', async () => {
+    _llmEnabled = false;
+    const res = await request.get('/api/config');
     expect(res.body.llmEnabled).toBe(false);
   });
 });

@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { server } from '../tests/mswServer.js';
 import { http, HttpResponse } from 'msw';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AppConfigProvider } from '../context/AppConfigContext.jsx';
 import TemplatePickerPage from './TemplatePickerPage.jsx';
 
@@ -50,5 +51,22 @@ describe('TemplatePickerPage', () => {
     renderPage();
     // ErrorToast (role=alert) appears with the error message
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+  });
+
+  it('navigates to /configure when a template is selected', async () => {
+    server.use(http.get('/api/templates', () => HttpResponse.json(templates)));
+    render(
+      <MemoryRouter>
+        <AppConfigProvider>
+          <Routes>
+            <Route path="/" element={<TemplatePickerPage />} />
+            <Route path="/configure" element={<div>configure</div>} />
+          </Routes>
+        </AppConfigProvider>
+      </MemoryRouter>
+    );
+    await waitFor(() => screen.getByText('React + Express'));
+    await userEvent.click(screen.getAllByRole('button', { name: /use this template/i })[0]);
+    await waitFor(() => expect(screen.getByText('configure')).toBeInTheDocument());
   });
 });

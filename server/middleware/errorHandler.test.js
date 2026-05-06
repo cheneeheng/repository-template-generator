@@ -24,7 +24,7 @@ describe('errorHandler', () => {
   });
 
   it('returns 422 for Anthropic context overflow', () => {
-    const err = new Anthropic.APIError(400, { message: 'prompt is too long' }, 'prompt is too long', {});
+    const err = new Anthropic.APIError(400, { message: 'prompt is too long' }, 'prompt is too long', new Headers());
     const res = makeRes();
     errorHandler(err, req, res, next);
     expect(res.status).toHaveBeenCalledWith(422);
@@ -32,7 +32,7 @@ describe('errorHandler', () => {
   });
 
   it('returns 502 for other Anthropic APIError', () => {
-    const err = new Anthropic.APIError(529, { message: 'overloaded' }, 'overloaded', {});
+    const err = new Anthropic.APIError(529, { message: 'overloaded' }, 'overloaded', new Headers());
     const res = makeRes();
     errorHandler(err, req, res, next);
     expect(res.status).toHaveBeenCalledWith(502);
