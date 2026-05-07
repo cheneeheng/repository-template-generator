@@ -1,42 +1,54 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '../tests/mswServer.js';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { AppConfigProvider } from '../context/AppConfigContext.jsx';
+import { vi } from 'vitest';
 import ExportPage from './ExportPage.jsx';
 import useStore from '../store.js';
 
+const FUTURE = { v7_startTransition: true, v7_relativeSplatPath: true };
+
+// AppConfigProvider fetches /api/config via MSW whose response resolves across
+// multiple async hops outside act's tracking window. Mock the module so the
+// provider is a passthrough.
+vi.mock('../context/AppConfigContext.jsx', () => ({
+  AppConfigProvider: ({ children }) => children,
+  useAppConfig: vi.fn(() => ({ llmEnabled: true })),
+}));
+
 const fileTree = [{ path: 'a.js', content: 'x' }];
 
-function renderPage() {
-  return render(
-    <MemoryRouter initialEntries={['/export']}>
-      <AppConfigProvider>
+async function renderPage() {
+  await act(async () => {
+    render(
+      <MemoryRouter initialEntries={['/export']} future={FUTURE}>
         <Routes>
           <Route path="/export" element={<ExportPage />} />
           <Route path="/" element={<div>home</div>} />
         </Routes>
-      </AppConfigProvider>
-    </MemoryRouter>
-  );
+      </MemoryRouter>
+    );
+    await new Promise((r) => setTimeout(r, 0));
+  });
 }
 
-function renderPageWithProvider(provider = 'github') {
+async function renderPageWithProvider(provider = 'github') {
   useStore.setState({
     fileTree,
     projectConfig: { projectName: 'app', provider, description: 'desc' },
   });
-  return render(
-    <MemoryRouter initialEntries={['/export']}>
-      <AppConfigProvider>
+  await act(async () => {
+    render(
+      <MemoryRouter initialEntries={['/export']} future={FUTURE}>
         <Routes>
           <Route path="/export" element={<ExportPage />} />
           <Route path="/" element={<div>home</div>} />
         </Routes>
-      </AppConfigProvider>
-    </MemoryRouter>
-  );
+      </MemoryRouter>
+    );
+    await new Promise((r) => setTimeout(r, 0));
+  });
 }
 
 describe('ExportPage', () => {
@@ -47,22 +59,19 @@ describe('ExportPage', () => {
     });
   });
 
-  afterEach(() => {
-    useStore.setState({ fileTree: null, projectConfig: null });
+  afterEach(async () => {
+    await act(async () => { useStore.setState({ fileTree: null, projectConfig: null }); });
+    vi.clearAllMocks();
   });
 
   it('shows download ZIP button', async () => {
-    renderPage();
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /download zip/i })).toBeInTheDocument()
-    );
+    await renderPage();
+    expect(screen.getByRole('button', { name: /download zip/i })).toBeInTheDocument();
   });
 
   it('shows only ZIP button when no providers configured', async () => {
-    renderPage();
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /download zip/i })).toBeInTheDocument()
-    );
+    await renderPage();
+    expect(screen.getByRole('button', { name: /download zip/i })).toBeInTheDocument();
     expect(screen.queryByText(/connect github/i)).not.toBeInTheDocument();
   });
 
@@ -76,8 +85,8 @@ describe('ExportPage', () => {
     URL.revokeObjectURL = vi.fn();
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
-    renderPage();
-    await userEvent.click(await screen.findByRole('button', { name: /download zip/i }));
+    await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: /download zip/i }));
     await waitFor(() => expect(clickSpy).toHaveBeenCalled());
 
     clickSpy.mockRestore();
@@ -90,49 +99,49 @@ describe('ExportPage', () => {
     ));
     URL.createObjectURL = vi.fn().mockReturnValue('blob:test');
     URL.revokeObjectURL = vi.fn();
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
-    renderPage();
-    const btn = await screen.findByRole('button', { name: /download zip/i });
+    await renderPage();
+    const btn = screen.getByRole('button', { name: /download zip/i });
     await userEvent.click(btn);
 
     expect(screen.getByRole('button').querySelector('[aria-label="Loading"]')).toBeTruthy();
 
-    // Resolve to avoid dangling promise
-    resolve(new HttpResponse(new Uint8Array([1]), { headers: { 'Content-Type': 'application/zip' } }));
+    await act(async () => {
+      resolve(new HttpResponse(new Uint8Array([1]), { headers: { 'Content-Type': 'application/zip' } }));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    clickSpy.mockRestore();
   });
 
-  it('redirects to / when no file tree in store', () => {
+  it('redirects to / when no file tree in store', async () => {
     useStore.setState({ fileTree: null });
-    renderPage();
+    await renderPage();
     expect(screen.getByText('home')).toBeInTheDocument();
   });
 });
 
 describe('ExportPage — OAuth provider flow', () => {
-  afterEach(() => {
-    useStore.setState({ fileTree: null, projectConfig: null });
+  afterEach(async () => {
     window.location.hash = '';
+    await act(async () => { useStore.setState({ fileTree: null, projectConfig: null }); });
+    vi.clearAllMocks();
   });
 
   it('shows Connect GitHub link when github provider not yet authenticated', async () => {
-    renderPageWithProvider('github');
-    await waitFor(() =>
-      expect(screen.getByRole('link', { name: /connect github/i })).toBeInTheDocument()
-    );
+    await renderPageWithProvider('github');
+    expect(screen.getByRole('link', { name: /connect github/i })).toBeInTheDocument();
   });
 
   it('shows connected state when OAuth token is in URL fragment', async () => {
     window.location.hash = '#token=gho_test&provider=github';
-    renderPageWithProvider('github');
-    await waitFor(() =>
-      expect(screen.getByText(/connected as github/i)).toBeInTheDocument()
-    );
+    await renderPageWithProvider('github');
+    expect(screen.getByText(/connected as github/i)).toBeInTheDocument();
   });
 
   it('shows repo form toggle when connected', async () => {
     window.location.hash = '#token=gho_test&provider=github';
-    renderPageWithProvider('github');
-    await waitFor(() => screen.getByText(/connected as github/i));
+    await renderPageWithProvider('github');
     const toggle = screen.getByRole('button', { name: /create repository/i });
     await userEvent.click(toggle);
     expect(screen.getByRole('heading', { name: /create repository/i })).toBeInTheDocument();
@@ -143,11 +152,9 @@ describe('ExportPage — OAuth provider flow', () => {
       HttpResponse.json({ repoUrl: 'https://github.com/user/repo' })
     ));
     window.location.hash = '#token=gho_test&provider=github';
-    renderPageWithProvider('github');
-    await waitFor(() => screen.getByText(/connected as github/i));
+    await renderPageWithProvider('github');
     // Open the repo form
     await userEvent.click(screen.getByRole('button', { name: /create repository/i }));
-    // Now fill the form — labels need htmlFor/id to be accessible
     await userEvent.type(screen.getByRole('textbox', { name: /org \/ user/i }), 'myorg');
     await userEvent.type(screen.getByRole('textbox', { name: /repository name/i }), 'my-repo');
     // Submit via the form's submit button (not the toggle)
@@ -163,8 +170,7 @@ describe('ExportPage — OAuth provider flow', () => {
       new HttpResponse(null, { status: 401 })
     ));
     window.location.hash = '#token=gho_test&provider=github';
-    renderPageWithProvider('github');
-    await waitFor(() => screen.getByText(/connected as github/i));
+    await renderPageWithProvider('github');
     await userEvent.click(screen.getByRole('button', { name: /create repository/i }));
     await userEvent.type(screen.getByRole('textbox', { name: /org \/ user/i }), 'org');
     await userEvent.type(screen.getByRole('textbox', { name: /repository name/i }), 'repo');
@@ -177,17 +183,14 @@ describe('ExportPage — OAuth provider flow', () => {
 
   it('shows error from hash fragment', async () => {
     window.location.hash = '#error=OAuth%20denied';
-    renderPageWithProvider('github');
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveTextContent(/OAuth denied/i)
-    );
+    await renderPageWithProvider('github');
+    expect(screen.getByRole('alert')).toHaveTextContent(/OAuth denied/i);
   });
 
   it('disconnect button clears token and hides connected state', async () => {
     window.location.hash = '#token=gho_test&provider=github';
     server.use(http.get('/api/auth/github/revoke', () => HttpResponse.json({ ok: true })));
-    renderPageWithProvider('github');
-    await waitFor(() => screen.getByText(/connected as github/i));
+    await renderPageWithProvider('github');
     await userEvent.click(screen.getByRole('button', { name: /disconnect/i }));
     await waitFor(() =>
       expect(screen.queryByText(/connected as github/i)).not.toBeInTheDocument()

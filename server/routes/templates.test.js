@@ -9,6 +9,7 @@ vi.mock('../services/llm.js', () => ({
   customiseStreaming: vi.fn(),
   refineStreaming: vi.fn(),
 }));
+vi.mock('../logger.js', () => ({ default: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 
 const validManifest = JSON.stringify({
   id: 'react-express', label: 'React+Express', description: 'A starter', tags: ['react'],

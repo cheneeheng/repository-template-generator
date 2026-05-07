@@ -4,6 +4,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import createError from 'http-errors';
 import { errorHandler } from './errorHandler.js';
 
+vi.mock('../logger.js', () => ({ default: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
+
 function makeRes() {
   const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
   return res;

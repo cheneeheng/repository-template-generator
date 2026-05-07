@@ -1,5 +1,6 @@
 import { ZodError } from 'zod';
 import Anthropic from '@anthropic-ai/sdk';
+import logger from '../logger.js';
 
 export function errorHandler(err, req, res, next) {
   if (err instanceof ZodError) {
@@ -21,6 +22,6 @@ export function errorHandler(err, req, res, next) {
   if (httpStatus && httpStatus >= 400 && httpStatus < 600) {
     return res.status(httpStatus).json({ error: err.message });
   }
-  console.error(err);
+  logger.error(err);
   res.status(500).json({ error: 'Internal server error' });
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import useStore from '../store.js'
 import { exportRepo } from '../api.js'
 import { ErrorToast } from '../components/ErrorToast.jsx'
@@ -151,16 +151,11 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
 }
 
 export default function ExportPage() {
-  const navigate = useNavigate()
   const fileTree = useStore((s) => s.fileTree)
   const projectConfig = useStore((s) => s.projectConfig)
   const [error, setError] = useState(null)
   const [showRepoForm, setShowRepoForm] = useState(false)
   const [authState, setAuthState] = useState({ github: null, gitlab: null })
-
-  useEffect(() => {
-    if (!fileTree) navigate('/')
-  }, [fileTree, navigate])
 
   // Read token or error from URL fragment placed there by the OAuth callback redirect
   useEffect(() => {
@@ -181,7 +176,7 @@ export default function ExportPage() {
     }
   }, [])
 
-  if (!fileTree) return null
+  if (!fileTree) return <Navigate to="/" replace />
 
   const provider = projectConfig?.provider
   const isZipOnly = !provider || provider === 'zip'

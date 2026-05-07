@@ -101,6 +101,27 @@ The server is available on `:3000` and the client on `:5173` (served via nginx i
 3. Select the `api` scope.
 4. Copy the application ID and secret into `server/.env`.
 
+## Testing
+
+Both server and client use [Vitest](https://vitest.dev/) and are run with `bun`.
+
+### Server
+
+```bash
+cd server
+bun run test              # run once
+bun run test:watch        # watch mode
+bun run test:coverage     # with coverage report
+```
+
+### Client
+
+```bash
+cd client
+bun run test              # run once
+bun run test:watch        # watch mode
+```
+
 ## Adding a template
 
 1. Create `templates/<your-template>/template.json`:
