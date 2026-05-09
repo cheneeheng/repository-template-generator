@@ -82,4 +82,10 @@ router.get('/:provider/revoke', async (req, res) => {
   res.json({ ok: true });
 });
 
+// Test-only helper to seed the pending state map deterministically
+export function _seedState(state, entry) {
+  if (process.env.NODE_ENV !== 'test') return;
+  pendingStates.set(state, entry);
+}
+
 export default router;

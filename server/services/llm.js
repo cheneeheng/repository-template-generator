@@ -69,7 +69,7 @@ async function streamParseFileTree(stream, res) {
     };
     parser.onopenarray = () => { depth++; };
     parser.onclosearray = () => { depth--; };
-    parser.on('error', (e) => { parseError = e; reject(e); });
+    parser.on('error', (e) => { parseError = e; resolve(); });
     parser.on('end', () => resolve());
 
     stream.on('text', (text) => {

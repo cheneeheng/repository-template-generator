@@ -60,37 +60,41 @@ export async function exchangeCodeForToken(provider, code) {
   throw createError(400, `Unknown provider: ${provider}`);
 }
 
+// Best-effort — never throws; callers should not depend on success
 export async function revokeToken(provider, token) {
-  if (provider === 'github') {
-    // GitHub OAuth app token revocation requires Basic auth with client credentials
-    const credentials = Buffer.from(
-      `${process.env.GITHUB_CLIENT_ID}:${process.env.GITHUB_CLIENT_SECRET}`
-    ).toString('base64');
-    await fetch(
-      `https://api.github.com/applications/${process.env.GITHUB_CLIENT_ID}/token`,
-      {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Basic ${credentials}`,
-          'Content-Type': 'application/json',
-          Accept: 'application/vnd.github+json',
-        },
-        body: JSON.stringify({ access_token: token }),
-      }
-    );
-    return;
-  }
+  try {
+    if (provider === 'github') {
+      const credentials = Buffer.from(
+        `${process.env.GITHUB_CLIENT_ID}:${process.env.GITHUB_CLIENT_SECRET}`
+      ).toString('base64');
+      await fetch(
+        `https://api.github.com/applications/${process.env.GITHUB_CLIENT_ID}/token`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Basic ${credentials}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/vnd.github+json',
+          },
+          body: JSON.stringify({ access_token: token }),
+        }
+      );
+      return;
+    }
 
-  if (provider === 'gitlab') {
-    const base = process.env.GITLAB_BASE_URL ?? 'https://gitlab.com';
-    await fetch(`${base}/oauth/revoke`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: process.env.GITLAB_CLIENT_ID,
-        client_secret: process.env.GITLAB_CLIENT_SECRET,
-        token,
-      }),
-    });
+    if (provider === 'gitlab') {
+      const base = process.env.GITLAB_BASE_URL ?? 'https://gitlab.com';
+      await fetch(`${base}/oauth/revoke`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: process.env.GITLAB_CLIENT_ID,
+          client_secret: process.env.GITLAB_CLIENT_SECRET,
+          token,
+        }),
+      });
+    }
+  } catch {
+    // best-effort — swallow errors
   }
 }

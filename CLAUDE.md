@@ -12,4 +12,3 @@ Development runs inside a Docker devcontainer (`.devcontainer/`). The container 
 
 - **Python**: managed by `uv`, version 3.12.11, venv at `backend/.venv`
 - **Node.js**: managed by `nvm` (v24), package manager is `bun`
-- **Claude Code**: installed globally via npm

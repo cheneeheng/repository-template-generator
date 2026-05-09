@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import useStore from '../store.js'
 import { exportRepo } from '../api.js'
 import { ErrorToast } from '../components/ErrorToast.jsx'
@@ -102,10 +102,11 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
     <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem', maxWidth: '480px' }}>
       <h2>Create Repository</h2>
       <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.25rem' }}>
+        <label htmlFor="repo-owner" style={{ display: 'block', marginBottom: '0.25rem' }}>
           {provider === 'gitlab' ? 'Namespace' : 'Org / User'}
         </label>
         <input
+          id="repo-owner"
           type="text"
           value={owner}
           onChange={(e) => setOwner(e.target.value)}
@@ -114,8 +115,9 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
         />
       </div>
       <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.25rem' }}>Repository Name</label>
+        <label htmlFor="repo-name" style={{ display: 'block', marginBottom: '0.25rem' }}>Repository Name</label>
         <input
+          id="repo-name"
           type="text"
           value={repoName}
           onChange={(e) => setRepoName(e.target.value)}
@@ -149,16 +151,11 @@ function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpir
 }
 
 export default function ExportPage() {
-  const navigate = useNavigate()
   const fileTree = useStore((s) => s.fileTree)
   const projectConfig = useStore((s) => s.projectConfig)
   const [error, setError] = useState(null)
   const [showRepoForm, setShowRepoForm] = useState(false)
   const [authState, setAuthState] = useState({ github: null, gitlab: null })
-
-  useEffect(() => {
-    if (!fileTree) navigate('/')
-  }, [fileTree, navigate])
 
   // Read token or error from URL fragment placed there by the OAuth callback redirect
   useEffect(() => {
@@ -179,7 +176,7 @@ export default function ExportPage() {
     }
   }, [])
 
-  if (!fileTree) return null
+  if (!fileTree) return <Navigate to="/" replace />
 
   const provider = projectConfig?.provider
   const isZipOnly = !provider || provider === 'zip'

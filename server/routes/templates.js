@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { TEMPLATES_DIR } from '../services/assembler.js';
 import { validateManifest } from '../services/templateValidator.js';
+import logger from '../logger.js';
 
 const router = Router();
 
@@ -47,7 +48,7 @@ export async function scanTemplates() {
 
           const validation = validateManifest(manifest, manifestPath);
           if (!validation.valid) {
-            console.error(
+            logger.error(
               `[templates] Skipping invalid template at ${templateDir}:\n` +
               validation.errors.map(e => `  • ${e}`).join('\n')
             );

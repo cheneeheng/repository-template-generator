@@ -56,8 +56,9 @@ export default function ConfigurePage() {
       <p style={{ color: 'var(--color-text-muted)' }}>Template: {selectedTemplate.label}</p>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.25rem' }}>Project Name</label>
+          <label htmlFor="project-name" style={{ display: 'block', marginBottom: '0.25rem' }}>Project Name</label>
           <input
+            id="project-name"
             type="text"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
@@ -66,8 +67,9 @@ export default function ConfigurePage() {
           />
         </div>
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.25rem' }}>Description</label>
+          <label htmlFor="description" style={{ display: 'block', marginBottom: '0.25rem' }}>Description</label>
           <textarea
+            id="description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}

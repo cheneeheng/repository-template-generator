@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "dev": "concurrently \"bun run dev --prefix server\" \"bun run dev --prefix client\"",
+    "test": "concurrently \"bun run test --prefix server\" \"bun run test --prefix client\"",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
     "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build"
