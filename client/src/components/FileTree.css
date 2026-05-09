@@ -1,0 +1,23 @@
+.file-tree__entry {
+  display: block;
+  width: 100%;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  padding-right: 8px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.file-tree__entry:hover {
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.file-tree__entry.is-active {
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  color: var(--color-accent);
+}

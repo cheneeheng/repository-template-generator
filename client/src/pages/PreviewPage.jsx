@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useStore from '../store.js'
 import FileTree from '../components/FileTree.jsx'
-import FileViewer from '../components/FileViewer.jsx'
+import FileEditor from '../components/FileEditor.jsx'
 import { ErrorToast } from '../components/ErrorToast.jsx'
 import { RefinementPanel } from '../components/RefinementPanel.jsx'
 import { streamGenerate } from '../lib/streamGenerate.js'
@@ -15,17 +15,17 @@ export default function PreviewPage() {
   const navigate = useNavigate()
   const selectedTemplate = useStore((s) => s.selectedTemplate)
   const projectConfig = useStore((s) => s.projectConfig)
-  const setFileTree = useStore((s) => s.setFileTree)
+  const storeSetFileTree = useStore((s) => s.setFileTree)
 
   const [streamState, setStreamState] = useState({
     status: 'streaming',
     files: [],
-    fileTree: null,
     error: null,
     tokenCount: 0,
     rateLimitWait: null,
   })
-  const [activeFile, setActiveFile] = useState(null)
+  const [fileTree, setFileTree] = useState(null)
+  const [activeFilePath, setActiveFilePath] = useState(null)
   const [history, setHistory] = useState([])
 
   const { llmEnabled } = useAppConfig()
@@ -61,9 +61,10 @@ export default function PreviewPage() {
           }))
         },
         onDone(tree) {
+          storeSetFileTree(tree)
           setFileTree(tree)
-          setStreamState((prev) => ({ ...prev, status: 'done', fileTree: tree }))
-          setActiveFile((prev) => prev ?? (tree[0] ?? null))
+          setStreamState((prev) => ({ ...prev, status: 'done' }))
+          setActiveFilePath((prev) => prev ?? (tree[0]?.path ?? null))
         },
         onError(msg) {
           setStreamState((prev) => ({ ...prev, status: 'error', error: msg }))
@@ -87,6 +88,16 @@ export default function PreviewPage() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  function handleEdit(newContent) {
+    setFileTree((prev) => {
+      const updated = prev.map((f) =>
+        f.path === activeFilePath ? { ...f, content: newContent } : f
+      )
+      storeSetFileTree(updated)
+      return updated
+    })
+  }
+
   function handleRefine(instruction) {
     const userTurn = { role: 'user', content: instruction }
     const nextHistory = truncateHistory([...history, userTurn])
@@ -95,7 +106,7 @@ export default function PreviewPage() {
     setStreamState((prev) => ({ ...prev, status: 'streaming', files: [], tokenCount: 0, error: null }))
 
     streamRefine(
-      { fileTree: streamState.fileTree, history: history, instruction },
+      { fileTree, history, instruction },
       {
         onFileDone(path, content) {
           setStreamState((prev) => ({
@@ -108,9 +119,10 @@ export default function PreviewPage() {
             ...prev,
             { role: 'assistant', content: JSON.stringify(updatedTree) },
           ])
+          storeSetFileTree(updatedTree)
           setFileTree(updatedTree)
-          setStreamState((prev) => ({ ...prev, status: 'done', fileTree: updatedTree }))
-          setActiveFile((prev) => prev ?? (updatedTree[0] ?? null))
+          setStreamState((prev) => ({ ...prev, status: 'done' }))
+          setActiveFilePath((prev) => prev ?? (updatedTree[0]?.path ?? null))
         },
         onError(msg) {
           setStreamState((prev) => ({ ...prev, status: 'error', error: msg }))
@@ -131,12 +143,14 @@ export default function PreviewPage() {
   }
 
   function clearAllState() {
-    setStreamState({ status: 'streaming', files: [], fileTree: null, error: null, tokenCount: 0, rateLimitWait: null })
+    setStreamState({ status: 'streaming', files: [], error: null, tokenCount: 0, rateLimitWait: null })
+    setFileTree(null)
+    setActiveFilePath(null)
     setHistory([])
-    setActiveFile(null)
   }
 
-  const { status, files, fileTree, error, tokenCount, rateLimitWait } = streamState
+  const { status, files, error, tokenCount, rateLimitWait } = streamState
+  const activeFile = fileTree?.find((f) => f.path === activeFilePath) ?? null
 
   if (status === 'error') {
     return (
@@ -216,13 +230,13 @@ export default function PreviewPage() {
           <div className="preview-layout__tree">
             <FileTree
               files={status === 'done' ? fileTree : files}
-              onSelect={setActiveFile}
+              onSelect={(file) => setActiveFilePath(file.path)}
               activeFile={activeFile}
               streaming={status === 'streaming'}
             />
           </div>
-          <div className="preview-layout__viewer">
-            <FileViewer file={activeFile} />
+          <div className="preview-layout__editor">
+            <FileEditor file={activeFile} onChange={handleEdit} />
           </div>
         </div>
       )}
