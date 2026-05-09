@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { SkeletonBlock } from './SkeletonBlock.jsx'
+import './FileTree.css'
 
 function buildTree(files) {
   const tree = {}
@@ -22,21 +23,13 @@ function TreeNode({ name, node, onSelect, activeFile, depth }) {
 
   if (isFile) {
     return (
-      <div
+      <button
+        className={`file-tree__entry${isActive ? ' is-active' : ''}`}
+        style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={() => onSelect(node.__file)}
-        style={{
-          paddingLeft: `${depth * 16 + 8}px`,
-          paddingTop: '3px',
-          paddingBottom: '3px',
-          cursor: 'pointer',
-          background: isActive ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)' : 'transparent',
-          borderRadius: '4px',
-          fontSize: '0.875rem',
-          color: isActive ? 'var(--color-accent)' : 'var(--color-text)',
-        }}
       >
         {name}
-      </div>
+      </button>
     )
   }
 

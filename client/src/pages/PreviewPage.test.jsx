@@ -163,6 +163,64 @@ describe('PreviewPage', () => {
     await waitFor(() => expect(screen.getByText('LLM unavailable')).toBeInTheDocument());
   });
 
+  it('clicking a filename opens its content in the editor panel', async () => {
+    server.use(http.post('/api/generate', () => sseStream([
+      { type: 'file_done', path: 'README.md', content: '# Hello' },
+      { type: 'file_done', path: 'index.js', content: 'console.log(1)' },
+      { type: 'done', fileTree: [
+        { path: 'README.md', content: '# Hello' },
+        { path: 'index.js', content: 'console.log(1)' },
+      ]},
+    ])));
+    await renderPage();
+    await waitFor(() => screen.getByText('index.js'));
+    await userEvent.click(screen.getByText('index.js'));
+    expect(screen.getByRole('textbox', { name: /file editor/i })).toHaveValue('console.log(1)');
+  });
+
+  it('applies is-active class to the clicked file entry', async () => {
+    server.use(http.post('/api/generate', () => sseStream([
+      { type: 'done', fileTree: [
+        { path: 'README.md', content: '# Hello' },
+        { path: 'index.js', content: 'x' },
+      ]},
+    ])));
+    await renderPage();
+    await waitFor(() => screen.getByText('index.js'));
+    const btn = screen.getByRole('button', { name: 'index.js' });
+    await userEvent.click(btn);
+    expect(btn).toHaveClass('is-active');
+  });
+
+  it('editing textarea content updates the displayed value', async () => {
+    server.use(http.post('/api/generate', () => sseStream([
+      { type: 'done', fileTree: [{ path: 'a.js', content: 'original' }] },
+    ])));
+    await renderPage();
+    await waitFor(() => expect(screen.getByRole('textbox', { name: /file editor/i })).toHaveValue('original'));
+    await userEvent.clear(screen.getByRole('textbox', { name: /file editor/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /file editor/i }), 'edited');
+    expect(screen.getByRole('textbox', { name: /file editor/i })).toHaveValue('edited');
+  });
+
+  it('edited content is preserved when switching between files and returning', async () => {
+    server.use(http.post('/api/generate', () => sseStream([
+      { type: 'done', fileTree: [
+        { path: 'a.js', content: 'original' },
+        { path: 'b.js', content: 'other' },
+      ]},
+    ])));
+    const editor = () => screen.getByRole('textbox', { name: /file editor/i });
+    await renderPage();
+    await waitFor(() => expect(editor()).toHaveValue('original'));
+    await userEvent.clear(editor());
+    await userEvent.type(editor(), 'edited');
+    await userEvent.click(screen.getByRole('button', { name: 'b.js' }));
+    expect(editor()).toHaveValue('other');
+    await userEvent.click(screen.getByRole('button', { name: 'a.js' }));
+    expect(editor()).toHaveValue('edited');
+  });
+
   it('shows rate limit message when refinement returns 429', async () => {
     const resetTime = String(Math.floor(Date.now() / 1000) + 900);
     server.use(

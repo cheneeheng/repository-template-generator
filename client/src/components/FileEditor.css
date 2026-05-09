@@ -1,0 +1,45 @@
+.file-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.file-editor__header {
+  background: var(--color-bg-surface);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-editor__textarea {
+  flex: 1;
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  outline: none;
+  background: var(--color-bg-input);
+  color: var(--color-text);
+  font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  resize: none;
+  min-height: 400px;
+}
+
+.file-editor--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 2rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
