@@ -67,6 +67,15 @@ describe('DarkModeToggle', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 
+  it('toggles from dark to light and stores "light" in localStorage', async () => {
+    localStorage.setItem('color-scheme', 'dark');
+    render(<DarkModeToggle />);
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    await userEvent.click(screen.getByRole('button'));
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(localStorage.getItem('color-scheme')).toBe('light');
+  });
+
   it('removes OS scheme change listener on unmount', () => {
     const mq = {
       matches: false,

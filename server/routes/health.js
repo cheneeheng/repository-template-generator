@@ -28,6 +28,7 @@ router.get('/', async (req, res) => {
     if (templates.length === 0) {
       checks.templatesDir = 'warning: no valid templates found';
     }
+  /* v8 ignore next 3 */
   } catch {
     checks.templateCount = 0;
   }

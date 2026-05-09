@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RefinementPanel } from './RefinementPanel.jsx';
 
@@ -49,5 +49,16 @@ describe('RefinementPanel', () => {
   it('keeps submit button disabled when input is empty', () => {
     render(<RefinementPanel onSubmit={vi.fn()} disabled={false} />);
     expect(screen.getByRole('button', { name: /refine/i })).toBeDisabled();
+  });
+
+  it('does not call onSubmit when disabled even with a non-empty value', async () => {
+    const onSubmit = vi.fn();
+    const { rerender } = render(<RefinementPanel onSubmit={onSubmit} disabled={false} />);
+    await userEvent.type(screen.getByRole('textbox'), 'hello');
+    // Now disable the panel while value is still in state
+    rerender(<RefinementPanel onSubmit={onSubmit} disabled={true} />);
+    // Fire keyDown directly on the now-disabled input to trigger handleSubmit
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter', code: 'Enter' });
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });

@@ -54,4 +54,35 @@ describe('POST /api/refine', () => {
     const res = await request.post('/api/refine').send(validBody).buffer(true);
     expect(res.text).toContain('"type":"done"');
   });
+
+  it('writes context_overflow on 400 prompt-too-long error', async () => {
+    _llmEnabled = true;
+    const { refineStreaming } = await import('../services/llm.js');
+    const err = Object.assign(new Error('prompt is too long'), { status: 400 });
+    refineStreaming.mockRejectedValue(err);
+
+    const res = await request.post('/api/refine').send(validBody).buffer(true);
+    expect(res.text).toContain('"type":"error"');
+    expect(res.text).toContain('context_overflow');
+  });
+
+  it('writes error message on generic refine error', async () => {
+    _llmEnabled = true;
+    const { refineStreaming } = await import('../services/llm.js');
+    refineStreaming.mockRejectedValue(new Error('model overloaded'));
+
+    const res = await request.post('/api/refine').send(validBody).buffer(true);
+    expect(res.text).toContain('"type":"error"');
+    expect(res.text).toContain('model overloaded');
+  });
+
+  it('falls back to "Refinement failed" when error has no message', async () => {
+    _llmEnabled = true;
+    const { refineStreaming } = await import('../services/llm.js');
+    refineStreaming.mockRejectedValue({ status: 500 });
+
+    const res = await request.post('/api/refine').send(validBody).buffer(true);
+    expect(res.text).toContain('"type":"error"');
+    expect(res.text).toContain('Refinement failed');
+  });
 });

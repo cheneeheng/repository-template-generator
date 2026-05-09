@@ -88,3 +88,17 @@ describe('POST /api/export/repo', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('POST /api/export/zip — error path', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('passes error to next when createZip throws', async () => {
+    const { createZip } = await import('../services/zipper.js');
+    createZip.mockRejectedValue(new Error('disk full'));
+
+    const res = await request
+      .post('/api/export/zip')
+      .send({ fileTree });
+    expect(res.status).toBe(500);
+  });
+});

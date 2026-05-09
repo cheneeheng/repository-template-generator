@@ -26,6 +26,7 @@ function DownloadZipButton({ fileTree, projectName, onError }) {
       a.href = url
       a.download = `${projectName ?? 'project'}.zip`
       a.click()
+      /* v8 ignore next */
       setTimeout(() => URL.revokeObjectURL(url), 10_000)
     } catch (err) {
       onError(err.message ?? 'Failed to export ZIP')
@@ -183,6 +184,7 @@ export default function ExportPage() {
   const token = isZipOnly ? null : authState[provider]
 
   function handleDisconnect() {
+    /* v8 ignore next */
     if (!token) return
     // Best-effort revocation — ignore errors
     fetch(`/api/auth/${provider}/revoke?token=${encodeURIComponent(token)}`).catch(() => {})

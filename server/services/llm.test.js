@@ -106,6 +106,26 @@ describe('customiseStreaming — bypass mode', () => {
   });
 });
 
+describe('customiseStreaming — empty object in stream', () => {
+  it('handles onopenobject with no firstKey (empty object)', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sk-test');
+    vi.resetModules();
+
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    // Stream a JSON array containing objects; first object has keys (normal),
+    // second object is empty {} — triggers onopenobject(undefined) for depth=2
+    Anthropic.mockImplementation(() => ({
+      messages: { stream: vi.fn().mockReturnValue(makeStream(['[{"path":"a.js","content":"x"},{}]'])) },
+    }));
+
+    const { customiseStreaming } = await import('./llm.js');
+    const res = makeRes();
+    const result = await customiseStreaming([], 'app', 'desc', res);
+    // The empty object lands in assembled but without path/content; the real file is present
+    expect(result.some(f => f.path === 'a.js')).toBe(true);
+  });
+});
+
 describe('customiseStreaming — normal path', () => {
   it('parses clarinet output and emits file_done per file', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'sk-test');

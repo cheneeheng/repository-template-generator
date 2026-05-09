@@ -63,6 +63,35 @@ describe('SharePage', () => {
     expect(screen.getByRole('button', { name: /start a new project/i })).toBeInTheDocument();
   });
 
+  it('shows generic error on non-404/410 server error', async () => {
+    server.use(http.get('/api/share/:id', () => HttpResponse.json({ error: 'server error' }, { status: 500 })));
+    await renderShare();
+    await waitFor(() => expect(screen.getByText(/something went wrong/i)).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /start a new project/i })).toBeInTheDocument();
+  });
+
+  it('shows generic error on network failure', async () => {
+    server.use(http.get('/api/share/:id', () => HttpResponse.error()));
+    await renderShare();
+    await waitFor(() => expect(screen.getByText(/something went wrong/i)).toBeInTheDocument());
+  });
+
+  it('generic error start-over button navigates home', async () => {
+    server.use(http.get('/api/share/:id', () => HttpResponse.json({ error: 'server error' }, { status: 500 })));
+    await renderShare();
+    await waitFor(() => screen.getByRole('button', { name: /start a new project/i }));
+    await userEvent.click(screen.getByRole('button', { name: /start a new project/i }));
+    expect(screen.getByText('home')).toBeInTheDocument();
+  });
+
+  it('expired start-over button navigates home', async () => {
+    server.use(http.get('/api/share/:id', () => HttpResponse.json({ error: 'expired' }, { status: 410 })));
+    await renderShare();
+    await waitFor(() => screen.getByRole('button', { name: /start a new project/i }));
+    await userEvent.click(screen.getByRole('button', { name: /start a new project/i }));
+    expect(screen.getByText('home')).toBeInTheDocument();
+  });
+
   it('not-found start-over button navigates home', async () => {
     server.use(http.get('/api/share/:id', () => HttpResponse.json({ error: 'not_found' }, { status: 404 })));
     await renderShare();

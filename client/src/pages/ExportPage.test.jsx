@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '../tests/mswServer.js';
 import { http, HttpResponse } from 'msw';
@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import ExportPage from './ExportPage.jsx';
 import useStore from '../store.js';
+import * as api from '../api.js';
 
 const FUTURE = { v7_startTransition: true, v7_relativeSplatPath: true };
 
@@ -119,6 +120,76 @@ describe('ExportPage', () => {
     await renderPage();
     expect(screen.getByText('home')).toBeInTheDocument();
   });
+
+  it('dismisses error toast when x button is clicked', async () => {
+    server.use(http.post('/api/export/zip', () =>
+      HttpResponse.json({ error: 'quota exceeded' }, { status: 500 })
+    ));
+    await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: /download zip/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    await userEvent.click(within(screen.getByRole('alert')).getByRole('button'));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
+  it('shows error toast when ZIP server responds with JSON error body', async () => {
+    server.use(http.post('/api/export/zip', () =>
+      HttpResponse.json({ error: 'quota exceeded' }, { status: 500 })
+    ));
+    await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: /download zip/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/quota exceeded/i)
+    );
+  });
+
+  it('shows fallback error when ZIP response body is not JSON', async () => {
+    server.use(http.post('/api/export/zip', () =>
+      new HttpResponse('Internal Server Error', { status: 500, headers: { 'Content-Type': 'text/plain' } })
+    ));
+    await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: /download zip/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/zip export failed/i)
+    );
+  });
+
+  it('uses "project.zip" when projectName is not set in config', async () => {
+    useStore.setState({
+      fileTree,
+      projectConfig: { projectName: null, provider: 'zip' },
+    });
+    server.use(http.post('/api/export/zip', () =>
+      new HttpResponse(new Uint8Array([1, 2, 3]), {
+        headers: { 'Content-Type': 'application/zip' },
+      })
+    ));
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:test');
+    URL.revokeObjectURL = vi.fn();
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: /download zip/i }));
+    await waitFor(() => expect(clickSpy).toHaveBeenCalled());
+
+    // Advance timers to trigger URL.revokeObjectURL cleanup
+    vi.useFakeTimers();
+    vi.advanceTimersByTime(11_000);
+    vi.useRealTimers();
+
+    clickSpy.mockRestore();
+  });
+
+  it('falls back to "Failed to export ZIP" when error has no message', async () => {
+    const noMsgErr = Object.assign(new Error(), { message: undefined });
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(noMsgErr);
+    await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: /download zip/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/failed to export zip/i)
+    );
+    vi.restoreAllMocks();
+  });
 });
 
 describe('ExportPage — OAuth provider flow', () => {
@@ -187,6 +258,67 @@ describe('ExportPage — OAuth provider flow', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/OAuth denied/i);
   });
 
+  it('clicking private checkbox marks repo as private', async () => {
+    server.use(http.post('/api/export/repo', () =>
+      HttpResponse.json({ repoUrl: 'https://github.com/user/private-repo' })
+    ));
+    window.location.hash = '#token=gho_test&provider=github';
+    await renderPageWithProvider('github');
+    await userEvent.click(screen.getByRole('button', { name: /create repository/i }));
+    const checkbox = screen.getByRole('checkbox', { name: /private repository/i });
+    await userEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+  });
+
+  it('shows error on non-401 repo creation failure', async () => {
+    server.use(http.post('/api/export/repo', () =>
+      HttpResponse.json({ error: 'repository already exists' }, { status: 422 })
+    ));
+    window.location.hash = '#token=gho_test&provider=github';
+    await renderPageWithProvider('github');
+    await userEvent.click(screen.getByRole('button', { name: /create repository/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /org \/ user/i }), 'org');
+    await userEvent.type(screen.getByRole('textbox', { name: /repository name/i }), 'repo');
+    const buttons = screen.getAllByRole('button', { name: /create repository/i });
+    await userEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/repository already exists/i)
+    );
+  });
+
+  it('falls back to "Failed to create repository" when error has no message', async () => {
+    vi.spyOn(api, 'exportRepo').mockRejectedValueOnce({ code: 'UNKNOWN' });
+    window.location.hash = '#token=gho_test&provider=github';
+    await renderPageWithProvider('github');
+    await userEvent.click(screen.getByRole('button', { name: /create repository/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /org \/ user/i }), 'org');
+    await userEvent.type(screen.getByRole('textbox', { name: /repository name/i }), 'repo');
+    const buttons = screen.getAllByRole('button', { name: /create repository/i });
+    await userEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/Failed to create repository/i)
+    );
+    vi.restoreAllMocks();
+  });
+
+  it('shows Namespace label and GitLab error message when gitlab provider expires', async () => {
+    server.use(http.post('/api/export/repo', () =>
+      new HttpResponse(null, { status: 401 })
+    ));
+    window.location.hash = '#token=glpat_test&provider=gitlab';
+    await renderPageWithProvider('gitlab');
+    await userEvent.click(screen.getByRole('button', { name: /create repository/i }));
+    // Gitlab uses "Namespace" label
+    expect(screen.getByRole('textbox', { name: /namespace/i })).toBeInTheDocument();
+    await userEvent.type(screen.getByRole('textbox', { name: /namespace/i }), 'mygroup');
+    await userEvent.type(screen.getByRole('textbox', { name: /repository name/i }), 'repo');
+    const buttons = screen.getAllByRole('button', { name: /create repository/i });
+    await userEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/gitlab/i)
+    );
+  });
+
   it('disconnect button clears token and hides connected state', async () => {
     window.location.hash = '#token=gho_test&provider=github';
     server.use(http.get('/api/auth/github/revoke', () => HttpResponse.json({ ok: true })));
@@ -196,4 +328,15 @@ describe('ExportPage — OAuth provider flow', () => {
       expect(screen.queryByText(/connected as github/i)).not.toBeInTheDocument()
     );
   });
+
+  it('disconnect swallows revoke fetch errors silently', async () => {
+    window.location.hash = '#token=gho_test&provider=github';
+    server.use(http.get('/api/auth/github/revoke', () => HttpResponse.error()));
+    await renderPageWithProvider('github');
+    await userEvent.click(screen.getByRole('button', { name: /disconnect/i }));
+    await waitFor(() =>
+      expect(screen.queryByText(/connected as github/i)).not.toBeInTheDocument()
+    );
+  });
+
 });

@@ -57,4 +57,55 @@ describe('GET /api/templates', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
   });
+
+  it('returns empty array when TEMPLATES_DIR readdir throws', async () => {
+    fsPromises.readdir.mockRejectedValueOnce(new Error('EPERM: permission denied'));
+
+    const res = await request.get('/api/templates');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('skips templates where readFile throws', async () => {
+    fsPromises.readdir
+      .mockResolvedValueOnce([{ name: 'broken', isDirectory: () => true }]);
+    fsPromises.readFile.mockRejectedValueOnce(new Error('disk error'));
+
+    const res = await request.get('/api/templates');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('skips template.json when encountered in directory walk', async () => {
+    fsPromises.readdir
+      .mockResolvedValueOnce([{ name: 'react-express', isDirectory: () => true }])
+      .mockResolvedValueOnce([
+        { name: 'template.json', isDirectory: () => false },
+        { name: 'README.md', isDirectory: () => false },
+      ]);
+    fsPromises.readFile.mockResolvedValueOnce(validManifest);
+
+    const res = await request.get('/api/templates');
+    expect(res.status).toBe(200);
+    expect(res.body[0].files).toContain('README.md');
+    expect(res.body[0].files).not.toContain('template.json');
+  });
+
+  it('includes nested files from subdirectories', async () => {
+    fsPromises.readdir
+      .mockResolvedValueOnce([{ name: 'react-express', isDirectory: () => true }])
+      .mockResolvedValueOnce([
+        { name: 'src', isDirectory: () => true },
+        { name: 'README.md', isDirectory: () => false },
+      ])
+      .mockResolvedValueOnce([
+        { name: 'App.jsx', isDirectory: () => false },
+      ]);
+    fsPromises.readFile.mockResolvedValueOnce(validManifest);
+
+    const res = await request.get('/api/templates');
+    expect(res.status).toBe(200);
+    expect(res.body[0].files).toContain('src/App.jsx');
+    expect(res.body[0].files).toContain('README.md');
+  });
 });

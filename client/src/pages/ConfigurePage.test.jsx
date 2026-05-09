@@ -94,6 +94,29 @@ describe('ConfigurePage', () => {
     expect(githubRadio).toBeChecked();
   });
 
+  it('updates description field when typing', async () => {
+    await renderPage();
+    const desc = screen.getByRole('textbox', { name: /description/i });
+    await userEvent.type(desc, 'my description');
+    expect(desc).toHaveValue('my description');
+  });
+
+  it('defaults to gitlab when only gitlab is configured', async () => {
+    api.fetchAuthProviders.mockResolvedValue({ github: false, gitlab: true });
+    await renderPage();
+    const gitlabRadio = screen.getByLabelText(/gitlab/i);
+    expect(gitlabRadio).toBeChecked();
+  });
+
+  it('changes provider when different radio is clicked', async () => {
+    api.fetchAuthProviders.mockResolvedValue({ github: true, gitlab: false });
+    await renderPage();
+    // Github is default; click the ZIP only radio to change provider
+    const zipRadio = screen.getByLabelText(/zip only/i);
+    await userEvent.click(zipRadio);
+    expect(zipRadio).toBeChecked();
+  });
+
   it('falls back to ZIP-only when providers fetch fails', async () => {
     api.fetchAuthProviders.mockRejectedValue(new Error('network error'));
     await renderPage();
