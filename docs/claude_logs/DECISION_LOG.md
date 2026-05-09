@@ -792,3 +792,18 @@ Plan's ConfigurePage test expected direct `/api/generate` calls; actual impl del
 **Rationale:** Coverage thresholds are CI gates per the spec. The excluded files are external-API wrappers or layout infrastructure not listed in the ITER_14/16 test scopes; excluding them is consistent with how ITER_14 excluded github.js/gitlab.js from the mocking strategy tests section. All new tests cover real behavior, not synthetic code paths.
 
 **Impact / Risk:** Low. Server: 76 tests, 96.14%/85.62%/100% stmts/branches/funcs. Client: 77 tests, 97.37%/85.25%/85.48% stmts/branches/funcs. All thresholds pass.
+
+---
+
+### Entry 055
+
+**Type:** Deviation from spec
+**Mode:** Autonomous
+**Timestamp:** 2026-05-09T00:00:00Z
+**Task:** ITER_18 — snapshot-based state refactor (§02/§05)
+
+**Context:** ITER_18 §05 specifies `setActiveSnapshot(prev => prev + 1)` after a refinement done event. This is only correct when `activeSnapshot === snapshots.length - 1` (user is at the latest snapshot). After a revert (e.g., reverted to index 0 with 2 snapshots), the new snapshot lands at index 2, but `prev + 1 = 1` — pointing at the wrong snapshot.
+**Decision / Action:** Used `const newSnapshotIndex = snapshots.length` captured before `setSnapshots` is called, then `setActiveSnapshot(newSnapshotIndex)`. Since `snapshots` in the closure is the value at the time `handleRefine` runs, `snapshots.length` is the old length, which equals the new snapshot's index (0-indexed) after append.
+**Rationale:** The spec's `prev + 1` pattern was designed for the non-reverted case. The revert-then-refine flow (also described in §02) requires the correct new index regardless of prior `activeSnapshot`.
+**Impact / Risk:** Low. Correctness improvement; behaviour is identical to spec in the non-reverted case.
+**Outcome:** Applied in `PreviewPage.jsx` `handleRefine` `onDone` handler.

@@ -221,6 +221,89 @@ describe('PreviewPage', () => {
     expect(editor()).toHaveValue('edited');
   });
 
+  it('appends snapshot after generation done', async () => {
+    server.use(http.post('/api/generate', () => sseStream([
+      { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+    ])));
+    await renderPage();
+    // History panel hidden until >=2 snapshots; one snapshot exists after generation
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    expect(screen.queryByLabelText(/refinement history/i)).not.toBeInTheDocument();
+  });
+
+  it('appends snapshot after refinement done and shows history panel', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/refine', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'y' }] },
+      ])),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'tweak');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => screen.getByLabelText(/refinement history/i));
+    expect(screen.getByRole('button', { name: /Generated/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Refinement 1/i })).toBeInTheDocument();
+  });
+
+  it('reverting to snapshot 0 restores original fileTree content', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'original' }] },
+      ])),
+      http.post('/api/refine', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'refined' }] },
+      ])),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'tweak');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => screen.getByLabelText(/refinement history/i));
+    // After refinement, editor shows refined content
+    expect(screen.getByRole('textbox', { name: /file editor/i })).toHaveValue('refined');
+    // Revert to Generated snapshot
+    await userEvent.click(screen.getByRole('button', { name: /Generated/i }));
+    expect(screen.getByRole('textbox', { name: /file editor/i })).toHaveValue('original');
+  });
+
+  it('reverting then refining appends a new snapshot without truncating history', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'v0' }] },
+      ])),
+      http.post('/api/refine', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'v1' }] },
+      ])),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'first');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => screen.getByLabelText(/refinement history/i));
+
+    // Revert to Generated, then refine again
+    await userEvent.click(screen.getByRole('button', { name: /Generated/i }));
+
+    server.use(http.post('/api/refine', () => sseStream([
+      { type: 'done', fileTree: [{ path: 'a.js', content: 'v2' }] },
+    ])));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'second');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+
+    await waitFor(() => {
+      const buttons = screen.getAllByRole('button', { name: /Generated|Refinement/i });
+      return buttons.length >= 3;
+    });
+    // All 3 snapshots present: Generated, Refinement 1, Refinement 2
+    expect(screen.getByRole('button', { name: /Generated/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Refinement 1/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Refinement 2/i })).toBeInTheDocument();
+  });
+
   it('shows rate limit message when refinement returns 429', async () => {
     const resetTime = String(Math.floor(Date.now() / 1000) + 900);
     server.use(

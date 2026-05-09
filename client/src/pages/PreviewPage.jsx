@@ -5,6 +5,7 @@ import FileTree from '../components/FileTree.jsx'
 import FileEditor from '../components/FileEditor.jsx'
 import { ErrorToast } from '../components/ErrorToast.jsx'
 import { RefinementPanel } from '../components/RefinementPanel.jsx'
+import { RefinementHistory } from '../components/RefinementHistory.jsx'
 import { streamGenerate } from '../lib/streamGenerate.js'
 import { streamRefine } from '../lib/streamRefine.js'
 import { truncateHistory } from '../lib/truncateHistory.js'
@@ -24,13 +25,17 @@ export default function PreviewPage() {
     tokenCount: 0,
     rateLimitWait: null,
   })
-  const [fileTree, setFileTree] = useState(null)
+  const [snapshots, setSnapshots] = useState([])
+  const [activeSnapshot, setActiveSnapshot] = useState(0)
   const [activeFilePath, setActiveFilePath] = useState(null)
   const [history, setHistory] = useState([])
 
   const { llmEnabled } = useAppConfig()
   const started = useRef(false)
   const readerRef = useRef(null)
+
+  // fileTree is derived from the active snapshot
+  const fileTree = snapshots[activeSnapshot]?.fileTree ?? null
 
   useEffect(() => {
     if (!selectedTemplate || !projectConfig) {
@@ -62,7 +67,8 @@ export default function PreviewPage() {
         },
         onDone(tree) {
           storeSetFileTree(tree)
-          setFileTree(tree)
+          setSnapshots([{ id: 0, label: 'Generated', fileTree: tree.map(f => ({ ...f })), timestamp: Date.now() }])
+          setActiveSnapshot(0)
           setStreamState((prev) => ({ ...prev, status: 'done' }))
           setActiveFilePath((prev) => prev ?? (tree[0]?.path ?? null))
         },
@@ -89,13 +95,17 @@ export default function PreviewPage() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleEdit(newContent) {
-    setFileTree((prev) => {
-      const updated = prev.map((f) =>
-        f.path === activeFilePath ? { ...f, content: newContent } : f
+    setSnapshots((prev) =>
+      prev.map((snap, i) =>
+        i === activeSnapshot
+          ? { ...snap, fileTree: snap.fileTree.map(f => f.path === activeFilePath ? { ...f, content: newContent } : f) }
+          : snap
       )
-      storeSetFileTree(updated)
-      return updated
-    })
+    )
+  }
+
+  function handleRevert(index) {
+    setActiveSnapshot(index)
   }
 
   function handleRefine(instruction) {
@@ -120,7 +130,17 @@ export default function PreviewPage() {
             { role: 'assistant', content: JSON.stringify(updatedTree) },
           ])
           storeSetFileTree(updatedTree)
-          setFileTree(updatedTree)
+          const newSnapshotIndex = snapshots.length
+          setSnapshots((prev) => {
+            const newSnapshot = {
+              id: prev.length,
+              label: `Refinement ${prev.length}`,
+              fileTree: updatedTree.map(f => ({ ...f })),
+              timestamp: Date.now(),
+            }
+            return [...prev, newSnapshot]
+          })
+          setActiveSnapshot(newSnapshotIndex)
           setStreamState((prev) => ({ ...prev, status: 'done' }))
           setActiveFilePath((prev) => prev ?? (updatedTree[0]?.path ?? null))
         },
@@ -144,7 +164,8 @@ export default function PreviewPage() {
 
   function clearAllState() {
     setStreamState({ status: 'streaming', files: [], error: null, tokenCount: 0, rateLimitWait: null })
-    setFileTree(null)
+    setSnapshots([])
+    setActiveSnapshot(0)
     setActiveFilePath(null)
     setHistory([])
   }
@@ -247,6 +268,11 @@ export default function PreviewPage() {
             onSubmit={handleRefine}
             disabled={status === 'streaming' || !llmEnabled}
             disabledReason={!llmEnabled ? 'Refinement requires an Anthropic API key.' : undefined}
+          />
+          <RefinementHistory
+            snapshots={snapshots}
+            activeSnapshot={activeSnapshot}
+            onRevert={handleRevert}
           />
           {status === 'done' && (
             <button
