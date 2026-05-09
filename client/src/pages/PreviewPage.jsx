@@ -10,6 +10,7 @@ import { streamGenerate } from '../lib/streamGenerate.js'
 import { streamRefine } from '../lib/streamRefine.js'
 import { truncateHistory } from '../lib/truncateHistory.js'
 import { useAppConfig } from '../context/AppConfigContext.jsx'
+import { saveEntry } from '../lib/workspace.js'
 import './PreviewPage.css'
 
 export default function PreviewPage() {
@@ -20,19 +21,29 @@ export default function PreviewPage() {
   const projectConfig = useStore((s) => s.projectConfig)
   const storeSetFileTree = useStore((s) => s.setFileTree)
 
+  const isRestored = routerState.fromShare || routerState.fromWorkspace
+  // fromWorkspace reuses the existing entry id; fromShare and fresh sessions get a new UUID
+  const [workspaceId] = useState(() =>
+    routerState.workspaceId ?? crypto.randomUUID()
+  )
   const [streamState, setStreamState] = useState({
-    status: routerState.fromShare ? 'done' : 'streaming',
+    status: isRestored ? 'done' : 'streaming',
     files: [],
     error: null,
     tokenCount: 0,
     rateLimitWait: null,
   })
   const [snapshots, setSnapshots] = useState(() => {
-    if (!routerState.fromShare) return []
-    const tree = routerState.fileTree ?? []
-    return [{ id: 0, label: 'Shared', fileTree: tree.map(f => ({ ...f })), timestamp: Date.now() }]
+    if (routerState.fromWorkspace) return routerState.snapshots ?? []
+    if (routerState.fromShare) {
+      const tree = routerState.fileTree ?? []
+      return [{ id: 0, label: 'Shared', fileTree: tree.map(f => ({ ...f })), timestamp: Date.now() }]
+    }
+    return []
   })
-  const [activeSnapshot, setActiveSnapshot] = useState(0)
+  const [activeSnapshot, setActiveSnapshot] = useState(() =>
+    routerState.fromWorkspace ? (routerState.snapshots?.length ?? 1) - 1 : 0
+  )
   const [activeFilePath, setActiveFilePath] = useState(null)
   const [history, setHistory] = useState([])
   const [sharing, setSharing] = useState(false)
@@ -42,16 +53,22 @@ export default function PreviewPage() {
   const started = useRef(false)
   const readerRef = useRef(null)
 
+  const sessionProjectName = projectConfig?.projectName ?? routerState.projectName ?? ''
+  const sessionTemplateId = selectedTemplate?.id ?? routerState.templateId ?? ''
+
   // fileTree is derived from the active snapshot
   const fileTree = snapshots[activeSnapshot]?.fileTree ?? null
 
   useEffect(() => {
-    if (!routerState.fromShare) return
-    storeSetFileTree(routerState.fileTree ?? [])
+    if (!isRestored) return
+    const tree = routerState.fromWorkspace
+      ? (routerState.snapshots?.[routerState.snapshots.length - 1]?.fileTree ?? [])
+      : (routerState.fileTree ?? [])
+    storeSetFileTree(tree)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (routerState.fromShare) return
+    if (isRestored) return
     if (!selectedTemplate || !projectConfig) {
       navigate('/')
       return
@@ -80,9 +97,18 @@ export default function PreviewPage() {
           }))
         },
         onDone(tree) {
+          const initialSnapshot = { id: 0, label: 'Generated', fileTree: tree.map(f => ({ ...f })), timestamp: Date.now() }
           storeSetFileTree(tree)
-          setSnapshots([{ id: 0, label: 'Generated', fileTree: tree.map(f => ({ ...f })), timestamp: Date.now() }])
+          setSnapshots([initialSnapshot])
           setActiveSnapshot(0)
+          saveEntry({
+            id: workspaceId,
+            projectName: projectConfig.projectName,
+            templateId: selectedTemplate.id,
+            fileTree: tree,
+            snapshots: [initialSnapshot],
+            savedAt: Date.now(),
+          })
           setStreamState((prev) => ({ ...prev, status: 'done' }))
           setActiveFilePath((prev) => prev ?? (tree[0]?.path ?? null))
         },
@@ -145,18 +171,27 @@ export default function PreviewPage() {
           ])
           storeSetFileTree(updatedTree)
           const newSnapshotIndex = snapshots.length
-          setSnapshots((prev) => {
-            const newSnapshot = {
-              id: prev.length,
-              label: `Refinement ${prev.length}`,
-              fileTree: updatedTree.map(f => ({ ...f })),
-              timestamp: Date.now(),
-            }
-            return [...prev, newSnapshot]
-          })
+          const newSnapshot = {
+            id: snapshots.length,
+            label: `Refinement ${snapshots.length}`,
+            fileTree: updatedTree.map(f => ({ ...f })),
+            timestamp: Date.now(),
+          }
+          const updatedSnapshots = [...snapshots, newSnapshot]
+          setSnapshots(updatedSnapshots)
           setActiveSnapshot(newSnapshotIndex)
           setStreamState((prev) => ({ ...prev, status: 'done' }))
           setActiveFilePath((prev) => prev ?? (updatedTree[0]?.path ?? null))
+          if (workspaceId) {
+            saveEntry({
+              id: workspaceId,
+              projectName: sessionProjectName,
+              templateId: sessionTemplateId,
+              fileTree: updatedTree,
+              snapshots: updatedSnapshots,
+              savedAt: Date.now(),
+            })
+          }
         },
         onError(msg) {
           setStreamState((prev) => ({ ...prev, status: 'error', error: msg }))

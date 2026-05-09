@@ -822,3 +822,71 @@ Plan's ConfigurePage test expected direct `/api/generate` calls; actual impl del
 **Rationale:** `useState` lazy initializers run exactly once per component instance even in StrictMode, making the `useRef` guard unnecessary. The storeSetFileTree call in the subsequent `useEffect` runs twice in StrictMode but is idempotent. The implementation is strictly better than the spec's prescribed pattern.
 **Impact / Risk:** None. Equivalent correctness, simpler code.
 **Outcome:** No code change. Implementation accepted as-is.
+
+---
+
+### Entry 057
+
+**Type:** Deviation from spec
+**Mode:** Autonomous
+**Timestamp:** 2026-05-09T00:00:00Z
+**Task:** ITER_20 — workspace auto-save (§05)
+
+**Context:** ITER_20 §05 shows the generation `onDone` handler creating the `workspaceId` with `crypto.randomUUID()` and calling `setWorkspaceId(entryId)`. The plan's code sample generates the UUID inside `onDone`, meaning `fromShare` sessions would start with `workspaceId === null` and their first refinement would silently skip the workspace save (the `if (workspaceId)` guard in `handleRefine.onDone` would be falsy).
+
+**Decision / Action:** Initialised `workspaceId` via `useState(() => routerState.workspaceId ?? crypto.randomUUID())` — a UUID is pre-generated for all sessions at mount time. `fromWorkspace` sessions restore the existing entry id from router state; fresh generation and `fromShare` sessions both receive a new UUID immediately. `setWorkspaceId` is no longer called inside `onDone`.
+
+**Rationale:** The plan states "fromShare sessions and workspace: those refinements should auto-save to workspace... workspaceId is generated fresh for every session, including fromShare sessions. No special case needed." Pre-generating in `useState` fulfils this intent: the `handleRefine.onDone` guard (`if (workspaceId)`) is always truthy, so `fromShare` refinements auto-save without any additional branching.
+
+**Impact / Risk:** Low. Behaviour is identical to spec for fresh generation sessions. `fromShare` auto-save now works without a special case, matching the stated intent.
+
+**Outcome:** Applied in `client/src/pages/PreviewPage.jsx`.
+
+---
+
+### Entry 058
+
+**Type:** Deviation from spec
+**Mode:** Autonomous
+**Timestamp:** 2026-05-09T00:00:00Z
+**Task:** ITER_20 — refinement onDone workspace save uses closure snapshot (§05)
+
+**Context:** ITER_20 §05 saves `snapshots` (the full updated history) on refinement done. `handleRefine` is a plain function (not memoised), so `snapshots` in its closure is the value at call time. The new snapshot is computed inline as `[...snapshots, newSnapshot]` and passed directly to both `setSnapshots` and `saveEntry`, rather than using `setSnapshots(prev => ...)` with a separate callback to capture the updated value.
+
+**Decision / Action:** Computed `updatedSnapshots = [...snapshots, newSnapshot]` from the closure-captured `snapshots`, then called `setSnapshots(updatedSnapshots)` and `saveEntry({ ..., snapshots: updatedSnapshots })` with the same array. This follows the same pattern established in Entry 055 (ITER_18 `newSnapshotIndex` capture).
+
+**Rationale:** No concurrent refinement can occur while one is in progress (the panel is disabled during streaming), so the closure-captured `snapshots` is always current at the moment `onDone` fires. Using a functional updater would require a ref or callback chain to also feed the value to `saveEntry`, adding unnecessary complexity.
+
+**Impact / Risk:** Low. Equivalent correctness under the single-refinement-at-a-time constraint.
+
+**Outcome:** Applied in `client/src/pages/PreviewPage.jsx` `handleRefine` `onDone` handler.
+
+---
+
+### Entry 059
+
+**Type:** Deviation from spec (accepted)
+**Mode:** Autonomous
+**Timestamp:** 2026-05-09T00:00:00Z
+**Task:** ITER_20 review — workspaceId initialised at render time, not in onDone
+
+**Context:** ITER_20 §05 shows `entryId = crypto.randomUUID()` generated inside the generation `onDone` callback, followed by `setWorkspaceId(entryId)`. The actual implementation initialises `workspaceId` in `useState(() => routerState.workspaceId ?? crypto.randomUUID())` at render time and uses it directly in `onDone` without regenerating.
+**Decision / Action:** Accepted as-is. This is the same deviation documented in Entry 057 (recorded during implementation). No code change required.
+**Rationale:** Functionally equivalent — a fresh UUID is always created for non-workspace sessions. Initialising in `useState` is preferable: the ID is stable across the render lifecycle and is immediately available to all handlers. The spec's in-callback pattern requires an extra `setWorkspaceId` call and a subsequent render before the value is accessible elsewhere.
+**Impact / Risk:** None. No user-visible difference.
+**Outcome:** No change. Implementation accepted as-is. All 122 tests pass.
+
+---
+
+### Entry 060
+
+**Type:** Fix
+**Mode:** Autonomous
+**Timestamp:** 2026-05-09T00:00:00Z
+**Task:** ITER_20 audit — unused `setWorkspaceId` setter
+
+**Context:** The `workspaceId` state was declared as `const [workspaceId, setWorkspaceId] = useState(...)`. The setter `setWorkspaceId` is never called (Entry 057 established that the UUID is pre-generated at mount time rather than inside `onDone`). The unused destructured variable is dead code.
+**Decision / Action:** Changed declaration to `const [workspaceId] = useState(...)`, dropping the unused setter.
+**Rationale:** Removing unused variables eliminates dead code and clarifies intent — the state is intentionally read-only after initialisation.
+**Impact / Risk:** None. No functional change.
+**Outcome:** Applied in `client/src/pages/PreviewPage.jsx`. All 122 tests pass.

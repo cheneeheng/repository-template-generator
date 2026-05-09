@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 import PreviewPage from './PreviewPage.jsx';
 import useStore from '../store.js';
 import { useAppConfig } from '../context/AppConfigContext.jsx';
+import { loadWorkspace } from '../lib/workspace.js';
 
 const FUTURE = { v7_startTransition: true, v7_relativeSplatPath: true };
 
@@ -72,6 +73,7 @@ describe('PreviewPage', () => {
 
   afterEach(async () => {
     await act(async () => { useStore.setState({ selectedTemplate: null, projectConfig: null, fileTree: null }); });
+    localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -395,5 +397,73 @@ describe('PreviewPage', () => {
     await waitFor(() => screen.getByRole('button', { name: /^share$/i }));
     await userEvent.click(screen.getByRole('button', { name: /^share$/i }));
     await waitFor(() => expect(screen.getByRole('button', { name: /link copied/i })).toBeInTheDocument());
+  });
+
+  it('auto-saves workspace entry on generation done', async () => {
+    server.use(http.post('/api/generate', () => sseStream([
+      { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+    ])));
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    const entries = loadWorkspace();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].projectName).toBe('my-app');
+    expect(entries[0].fileTree).toEqual([{ path: 'a.js', content: 'x' }]);
+  });
+
+  it('auto-saves updated entry on refinement done', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/refine', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'y' }] },
+      ])),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'tweak');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => screen.getByLabelText(/refinement history/i));
+    const entries = loadWorkspace();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].fileTree).toEqual([{ path: 'a.js', content: 'y' }]);
+    expect(entries[0].snapshots).toHaveLength(2);
+  });
+
+  it('fromWorkspace mode restores snapshots and skips generate call', async () => {
+    const generateSpy = vi.fn(() => new Promise(() => {}));
+    server.use(http.post('/api/generate', generateSpy));
+    const snapshots = [
+      { id: 0, label: 'Generated', fileTree: [{ path: 'a.js', content: 'v0' }], timestamp: Date.now() },
+      { id: 1, label: 'Refinement 1', fileTree: [{ path: 'a.js', content: 'v1' }], timestamp: Date.now() },
+    ];
+    await act(async () => {
+      render(
+        <MemoryRouter
+          initialEntries={[{
+            pathname: '/preview',
+            state: {
+              fileTree: snapshots[1].fileTree,
+              snapshots,
+              projectName: 'my-app',
+              templateId: 't',
+              workspaceId: 'existing-id',
+              fromWorkspace: true,
+            },
+          }]}
+          future={FUTURE}
+        >
+          <Routes>
+            <Route path="/preview" element={<PreviewPage />} />
+            <Route path="/" element={<div>home</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+      await new Promise(r => setTimeout(r, 0));
+    });
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(screen.getByText('a.js')).toBeInTheDocument();
+    expect(screen.getByLabelText(/refinement history/i)).toBeInTheDocument();
   });
 });
