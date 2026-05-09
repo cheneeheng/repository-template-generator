@@ -23,7 +23,7 @@ export default function PreviewPage() {
 
   const isRestored = routerState.fromShare || routerState.fromWorkspace
   // fromWorkspace reuses the existing entry id; fromShare and fresh sessions get a new UUID
-  const [workspaceId, setWorkspaceId] = useState(() =>
+  const [workspaceId] = useState(() =>
     routerState.workspaceId ?? crypto.randomUUID()
   )
   const [streamState, setStreamState] = useState({

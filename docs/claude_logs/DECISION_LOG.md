@@ -860,3 +860,33 @@ Plan's ConfigurePage test expected direct `/api/generate` calls; actual impl del
 **Impact / Risk:** Low. Equivalent correctness under the single-refinement-at-a-time constraint.
 
 **Outcome:** Applied in `client/src/pages/PreviewPage.jsx` `handleRefine` `onDone` handler.
+
+---
+
+### Entry 059
+
+**Type:** Deviation from spec (accepted)
+**Mode:** Autonomous
+**Timestamp:** 2026-05-09T00:00:00Z
+**Task:** ITER_20 review — workspaceId initialised at render time, not in onDone
+
+**Context:** ITER_20 §05 shows `entryId = crypto.randomUUID()` generated inside the generation `onDone` callback, followed by `setWorkspaceId(entryId)`. The actual implementation initialises `workspaceId` in `useState(() => routerState.workspaceId ?? crypto.randomUUID())` at render time and uses it directly in `onDone` without regenerating.
+**Decision / Action:** Accepted as-is. This is the same deviation documented in Entry 057 (recorded during implementation). No code change required.
+**Rationale:** Functionally equivalent — a fresh UUID is always created for non-workspace sessions. Initialising in `useState` is preferable: the ID is stable across the render lifecycle and is immediately available to all handlers. The spec's in-callback pattern requires an extra `setWorkspaceId` call and a subsequent render before the value is accessible elsewhere.
+**Impact / Risk:** None. No user-visible difference.
+**Outcome:** No change. Implementation accepted as-is. All 122 tests pass.
+
+---
+
+### Entry 060
+
+**Type:** Fix
+**Mode:** Autonomous
+**Timestamp:** 2026-05-09T00:00:00Z
+**Task:** ITER_20 audit — unused `setWorkspaceId` setter
+
+**Context:** The `workspaceId` state was declared as `const [workspaceId, setWorkspaceId] = useState(...)`. The setter `setWorkspaceId` is never called (Entry 057 established that the UUID is pre-generated at mount time rather than inside `onDone`). The unused destructured variable is dead code.
+**Decision / Action:** Changed declaration to `const [workspaceId] = useState(...)`, dropping the unused setter.
+**Rationale:** Removing unused variables eliminates dead code and clarifies intent — the state is intentionally read-only after initialisation.
+**Impact / Risk:** None. No functional change.
+**Outcome:** Applied in `client/src/pages/PreviewPage.jsx`. All 122 tests pass.
