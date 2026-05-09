@@ -10,6 +10,7 @@ import refineRouter from './routes/refine.js';
 import exportRouter from './routes/export.js';
 import authRouter from './routes/auth.js';
 import configRouter from './routes/config.js';
+import shareRouter from './routes/share.js';
 
 export function createApp() {
   const app = express();
@@ -23,6 +24,7 @@ export function createApp() {
   app.use('/api/export', exportRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/config', configRouter);
+  app.use('/api/share', shareRouter);
   app.use(errorHandler);
   return app;
 }

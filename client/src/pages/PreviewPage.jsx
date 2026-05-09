@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import useStore from '../store.js'
 import FileTree from '../components/FileTree.jsx'
 import FileEditor from '../components/FileEditor.jsx'
@@ -14,21 +14,29 @@ import './PreviewPage.css'
 
 export default function PreviewPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const routerState = location.state ?? {}
   const selectedTemplate = useStore((s) => s.selectedTemplate)
   const projectConfig = useStore((s) => s.projectConfig)
   const storeSetFileTree = useStore((s) => s.setFileTree)
 
   const [streamState, setStreamState] = useState({
-    status: 'streaming',
+    status: routerState.fromShare ? 'done' : 'streaming',
     files: [],
     error: null,
     tokenCount: 0,
     rateLimitWait: null,
   })
-  const [snapshots, setSnapshots] = useState([])
+  const [snapshots, setSnapshots] = useState(() => {
+    if (!routerState.fromShare) return []
+    const tree = routerState.fileTree ?? []
+    return [{ id: 0, label: 'Shared', fileTree: tree.map(f => ({ ...f })), timestamp: Date.now() }]
+  })
   const [activeSnapshot, setActiveSnapshot] = useState(0)
   const [activeFilePath, setActiveFilePath] = useState(null)
   const [history, setHistory] = useState([])
+  const [sharing, setSharing] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const { llmEnabled } = useAppConfig()
   const started = useRef(false)
@@ -38,6 +46,12 @@ export default function PreviewPage() {
   const fileTree = snapshots[activeSnapshot]?.fileTree ?? null
 
   useEffect(() => {
+    if (!routerState.fromShare) return
+    storeSetFileTree(routerState.fileTree ?? [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (routerState.fromShare) return
     if (!selectedTemplate || !projectConfig) {
       navigate('/')
       return
@@ -162,6 +176,28 @@ export default function PreviewPage() {
     )
   }
 
+  async function handleShare() {
+    setSharing(true)
+    try {
+      const snapshot = snapshots[activeSnapshot]
+      const res = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileTree: snapshot?.fileTree ?? fileTree,
+          projectName: projectConfig?.projectName ?? routerState.projectName ?? '',
+          templateId: selectedTemplate?.id ?? routerState.templateId ?? '',
+        }),
+      })
+      const { id } = await res.json()
+      await navigator.clipboard.writeText(window.location.origin + '/share/' + id)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 3000)
+    } finally {
+      setSharing(false)
+    }
+  }
+
   function clearAllState() {
     setStreamState({ status: 'streaming', files: [], error: null, tokenCount: 0, rateLimitWait: null })
     setSnapshots([])
@@ -275,12 +311,17 @@ export default function PreviewPage() {
             onRevert={handleRevert}
           />
           {status === 'done' && (
-            <button
-              onClick={() => navigate('/export')}
-              style={{ marginTop: '1.5rem', padding: '0.5rem 1.5rem' }}
-            >
-              Proceed to Export
-            </button>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => navigate('/export')}
+                style={{ padding: '0.5rem 1.5rem' }}
+              >
+                Proceed to Export
+              </button>
+              <button onClick={handleShare} disabled={sharing} style={{ padding: '0.5rem 1.5rem' }}>
+                {sharing ? 'Sharing…' : copied ? 'Link copied!' : 'Share'}
+              </button>
+            </div>
           )}
         </>
       )}
