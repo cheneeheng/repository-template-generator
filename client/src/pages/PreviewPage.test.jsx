@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '../tests/mswServer.js';
 import { http, HttpResponse } from 'msw';
@@ -29,6 +29,28 @@ async function renderPage() {
   await act(async () => {
     render(
       <MemoryRouter initialEntries={['/preview']} future={FUTURE}>
+        <Routes>
+          <Route path="/preview" element={<PreviewPage />} />
+          <Route path="/" element={<div>home</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await new Promise((r) => setTimeout(r, 0));
+  });
+}
+
+const sharedTree = [{ path: 'shared.js', content: 'shared' }];
+
+async function renderPageFromShare() {
+  await act(async () => {
+    render(
+      <MemoryRouter
+        initialEntries={[{
+          pathname: '/preview',
+          state: { fileTree: sharedTree, projectName: 'shared-proj', templateId: 't', fromShare: true },
+        }]}
+        future={FUTURE}
+      >
         <Routes>
           <Route path="/preview" element={<PreviewPage />} />
           <Route path="/" element={<div>home</div>} />
@@ -322,5 +344,56 @@ describe('PreviewPage', () => {
     await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'make it TypeScript');
     await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+  });
+
+  it('fromShare mode skips generate call and renders file tree immediately', async () => {
+    const generateSpy = vi.fn(() => new Promise(() => {}));
+    server.use(http.post('/api/generate', generateSpy));
+    await renderPageFromShare();
+    await waitFor(() => expect(screen.getByText('shared.js')).toBeInTheDocument());
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  it('fromShare mode initialises with a Shared snapshot', async () => {
+    server.use(http.post('/api/refine', () => sseStream([
+      { type: 'done', fileTree: sharedTree },
+    ])));
+    await renderPageFromShare();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'tweak');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => screen.getByLabelText(/refinement history/i));
+    const historyPanel = screen.getByLabelText(/refinement history/i);
+    expect(within(historyPanel).getByRole('button', { name: /Shared/i })).toBeInTheDocument();
+  });
+
+  it('share button copies link to clipboard', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/share', () => HttpResponse.json({ id: 'abcd1234' })),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('button', { name: /^share$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^share$/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/share/abcd1234')));
+  });
+
+  it('share button shows Link copied! feedback', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/share', () => HttpResponse.json({ id: 'abcd1234' })),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('button', { name: /^share$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^share$/i }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /link copied/i })).toBeInTheDocument());
   });
 });

@@ -807,3 +807,18 @@ Plan's ConfigurePage test expected direct `/api/generate` calls; actual impl del
 **Rationale:** The spec's `prev + 1` pattern was designed for the non-reverted case. The revert-then-refine flow (also described in §02) requires the correct new index regardless of prior `activeSnapshot`.
 **Impact / Risk:** Low. Correctness improvement; behaviour is identical to spec in the non-reverted case.
 **Outcome:** Applied in `PreviewPage.jsx` `handleRefine` `onDone` handler.
+
+---
+
+### Entry 056
+
+**Type:** Deviation from spec
+**Mode:** Autonomous
+**Timestamp:** 2026-05-09T00:00:00Z
+**Task:** ITER_19 — shareable links (§05)
+
+**Context:** ITER_19 §05 says "Guard with `useRef(false)` to prevent double snapshot insertion in development (same pattern as generation `done` handler in ITER_18)." The implementation uses a `useState` lazy initializer for snapshot creation instead of a `useEffect` with a `useRef` guard.
+**Decision / Action:** Accepted the lazy initializer approach; no change made.
+**Rationale:** `useState` lazy initializers run exactly once per component instance even in StrictMode, making the `useRef` guard unnecessary. The storeSetFileTree call in the subsequent `useEffect` runs twice in StrictMode but is idempotent. The implementation is strictly better than the spec's prescribed pattern.
+**Impact / Risk:** None. Equivalent correctness, simpler code.
+**Outcome:** No code change. Implementation accepted as-is.
