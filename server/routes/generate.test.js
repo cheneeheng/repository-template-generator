@@ -23,13 +23,19 @@ describe('POST /api/generate', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 400 for projectName with uppercase', async () => {
+  it('normalizes projectName with uppercase and spaces', async () => {
     const { load } = await import('../services/assembler.js');
+    const { customiseStreaming } = await import('../services/llm.js');
     load.mockResolvedValue([]);
+    customiseStreaming.mockImplementation(async (_files, name, _desc, _res) => {
+      expect(name).toBe('my-app');
+      return [];
+    });
     const res = await request
       .post('/api/generate')
-      .send({ templateId: 't1', projectName: 'MyApp', description: 'desc' });
-    expect(res.status).toBe(400);
+      .send({ templateId: 't1', projectName: 'My App', description: 'desc' })
+      .buffer(true);
+    expect(res.status).toBe(200);
   });
 
   it('streams file_done and done events in bypass mode', async () => {

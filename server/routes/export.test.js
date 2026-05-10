@@ -38,6 +38,17 @@ describe('POST /api/export/zip', () => {
       .send({ fileTree });
     expect(res.headers['content-disposition']).toContain('project.zip');
   });
+
+  it('normalizes projectName with uppercase and spaces', async () => {
+    const { createZip } = await import('../services/zipper.js');
+    createZip.mockResolvedValue(Buffer.from('zip-data'));
+
+    const res = await request
+      .post('/api/export/zip')
+      .send({ fileTree, projectName: 'My App Project' });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('my-app-project.zip');
+  });
 });
 
 describe('POST /api/export/repo', () => {
