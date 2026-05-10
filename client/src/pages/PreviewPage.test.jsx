@@ -665,4 +665,54 @@ describe('PreviewPage', () => {
     expect(screen.getByText('a.js')).toBeInTheDocument();
     expect(screen.getByLabelText(/refinement history/i)).toBeInTheDocument();
   });
+
+  it('Proceed to Export button navigates to /export', async () => {
+    server.use(http.post('/api/generate', () => sseStream([
+      { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+    ])));
+    const FUTURE_ROUTES = { v7_startTransition: true, v7_relativeSplatPath: true };
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/preview']} future={FUTURE_ROUTES}>
+          <Routes>
+            <Route path="/preview" element={<PreviewPage />} />
+            <Route path="/export" element={<div>export-page</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    await waitFor(() => screen.getByRole('button', { name: /proceed to export/i }));
+    await userEvent.click(screen.getByRole('button', { name: /proceed to export/i }));
+    expect(screen.getByText('export-page')).toBeInTheDocument();
+  });
+
+  it('share button resets to Share after 3 seconds', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ delay: null });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/share', () => HttpResponse.json({ id: 'reset-test' })),
+    );
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/preview']} future={FUTURE}>
+          <Routes>
+            <Route path="/preview" element={<PreviewPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    await waitFor(() => screen.getByRole('button', { name: /^share$/i }));
+    await user.click(screen.getByRole('button', { name: /^share$/i }));
+    await waitFor(() => screen.getByRole('button', { name: /link copied/i }));
+    act(() => { vi.advanceTimersByTime(3001); });
+    await waitFor(() => screen.getByRole('button', { name: /^share$/i }));
+    vi.useRealTimers();
+  });
 });
