@@ -38,6 +38,21 @@ describe('POST /api/generate', () => {
     expect(res.status).toBe(200);
   });
 
+  it('falls back to "project" when projectName normalizes to empty string', async () => {
+    const { load } = await import('../services/assembler.js');
+    const { customiseStreaming } = await import('../services/llm.js');
+    load.mockResolvedValue([]);
+    customiseStreaming.mockImplementation(async (_files, name, _desc, _res) => {
+      expect(name).toBe('project');
+      return [];
+    });
+    const res = await request
+      .post('/api/generate')
+      .send({ templateId: 't1', projectName: '---', description: 'desc' })
+      .buffer(true);
+    expect(res.status).toBe(200);
+  });
+
   it('streams file_done and done events in bypass mode', async () => {
     const { load } = await import('../services/assembler.js');
     const { customiseStreaming } = await import('../services/llm.js');

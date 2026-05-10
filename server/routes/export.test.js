@@ -49,6 +49,17 @@ describe('POST /api/export/zip', () => {
     expect(res.status).toBe(200);
     expect(res.headers['content-disposition']).toContain('my-app-project.zip');
   });
+
+  it('falls back to project.zip when projectName normalizes to empty string', async () => {
+    const { createZip } = await import('../services/zipper.js');
+    createZip.mockResolvedValue(Buffer.from('zip-data'));
+
+    const res = await request
+      .post('/api/export/zip')
+      .send({ fileTree, projectName: '---' });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('project.zip');
+  });
 });
 
 describe('POST /api/export/repo', () => {
