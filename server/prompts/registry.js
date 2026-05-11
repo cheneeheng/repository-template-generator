@@ -17,3 +17,5 @@ if (!CURRENT_PROMPT_VERSION) {
 }
 
 export const CURRENT_REFINE_VERSION = VERSIONS['refine-v1'];
+
+export { VERSIONS };

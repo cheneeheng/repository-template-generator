@@ -1,0 +1,7 @@
+{
+  "requiredFiles": ["README.md", "frontend/package.json", "frontend/src/App.jsx", "frontend/src/main.jsx"],
+  "requiredContent": {
+    "frontend/package.json": ["\"react\"", "\"scripts\""],
+    "README.md": ["my-app"]
+  }
+}
