@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '../tests/mswServer.js';
 import { http, HttpResponse } from 'msw';
@@ -69,6 +69,14 @@ describe('TemplatePickerPage', () => {
     await renderPage();
     // ErrorToast (role=alert) appears with the error message
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+  });
+
+  it('dismisses error toast when x button is clicked', async () => {
+    server.use(http.get('/api/templates', () => HttpResponse.error()));
+    await renderPage();
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    await userEvent.click(within(screen.getByRole('alert')).getByRole('button'));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
   });
 
   it('navigates to /configure when a template is selected', async () => {

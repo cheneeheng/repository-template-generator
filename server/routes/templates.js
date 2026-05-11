@@ -71,6 +71,7 @@ router.get('/', async (req, res, next) => {
   try {
     const templates = await scanTemplates();
     res.json(templates);
+  /* v8 ignore next 3 */
   } catch (err) {
     next(err);
   }

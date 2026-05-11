@@ -60,6 +60,12 @@ describe('WorkspacePage', () => {
     expect(screen.getByTestId('preview-page')).toBeInTheDocument();
   });
 
+  it('shows singular "1 file" for single-file entries', async () => {
+    saveEntry(makeEntry({ fileTree: [{ path: 'a.js', content: '' }] }));
+    await renderPage();
+    expect(screen.getByText(/1 file\b/i)).toBeInTheDocument();
+  });
+
   it('Delete button removes entry from the list', async () => {
     saveEntry(makeEntry({ id: 'del-1' }));
     await renderPage();

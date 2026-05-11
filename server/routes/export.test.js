@@ -38,6 +38,28 @@ describe('POST /api/export/zip', () => {
       .send({ fileTree });
     expect(res.headers['content-disposition']).toContain('project.zip');
   });
+
+  it('normalizes projectName with uppercase and spaces', async () => {
+    const { createZip } = await import('../services/zipper.js');
+    createZip.mockResolvedValue(Buffer.from('zip-data'));
+
+    const res = await request
+      .post('/api/export/zip')
+      .send({ fileTree, projectName: 'My App Project' });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('my-app-project.zip');
+  });
+
+  it('falls back to project.zip when projectName normalizes to empty string', async () => {
+    const { createZip } = await import('../services/zipper.js');
+    createZip.mockResolvedValue(Buffer.from('zip-data'));
+
+    const res = await request
+      .post('/api/export/zip')
+      .send({ fileTree, projectName: '---' });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('project.zip');
+  });
 });
 
 describe('POST /api/export/repo', () => {
@@ -86,5 +108,19 @@ describe('POST /api/export/repo', () => {
       .post('/api/export/repo')
       .send({ fileTree, provider: 'bitbucket', token: 'tok', owner: 'u', repoName: 'r' });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/export/zip — error path', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('passes error to next when createZip throws', async () => {
+    const { createZip } = await import('../services/zipper.js');
+    createZip.mockRejectedValue(new Error('disk full'));
+
+    const res = await request
+      .post('/api/export/zip')
+      .send({ fileTree });
+    expect(res.status).toBe(500);
   });
 });

@@ -40,6 +40,14 @@ describe('assembler.load', () => {
     await expect(load('nonexistent')).rejects.toMatchObject({ statusCode: 404 });
   });
 
+  it('rethrows non-ENOENT errors from readdir', async () => {
+    const permErr = Object.assign(new Error('EPERM'), { code: 'EPERM' });
+    fsPromises.readdir.mockRejectedValueOnce(permErr);
+
+    const { load } = await import('./assembler.js');
+    await expect(load('test')).rejects.toThrow('EPERM');
+  });
+
   it('skips directories in the template folder', async () => {
     fsPromises.readdir.mockResolvedValueOnce(['template.json', 'subdir', 'main.js']);
     fsPromises.stat

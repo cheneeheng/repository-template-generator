@@ -30,6 +30,17 @@ describe('buildGitLabAuthUrl', () => {
     const url = buildGitLabAuthUrl('state-abc');
     expect(url).toContain('gitlab.example.com');
   });
+
+  it('defaults to gitlab.com when GITLAB_BASE_URL not set', async () => {
+    delete process.env.GITLAB_BASE_URL;
+    vi.stubEnv('GITLAB_CLIENT_ID', 'glclient');
+    vi.stubEnv('GITLAB_REDIRECT_URI', 'http://localhost/cb');
+    vi.resetModules();
+    const { buildGitLabAuthUrl } = await import('./oauth.js');
+
+    const url = buildGitLabAuthUrl('state-def');
+    expect(url).toContain('gitlab.com');
+  });
 });
 
 describe('exchangeCodeForToken', () => {
@@ -76,6 +87,22 @@ describe('exchangeCodeForToken', () => {
     expect(token).toBe('glpat_test');
   });
 
+  it('uses gitlab.com default when GITLAB_BASE_URL not set', async () => {
+    fetch.mockResolvedValueOnce({ json: async () => ({ access_token: 'glpat_default' }) });
+    delete process.env.GITLAB_BASE_URL;
+    vi.stubEnv('GITLAB_CLIENT_ID', 'gl_client');
+    vi.stubEnv('GITLAB_CLIENT_SECRET', 'gl_secret');
+    vi.stubEnv('GITLAB_REDIRECT_URI', 'http://localhost/gl-cb');
+    vi.resetModules();
+    const { exchangeCodeForToken } = await import('./oauth.js');
+    const token = await exchangeCodeForToken('gitlab', 'gl_code');
+    expect(token).toBe('glpat_default');
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('gitlab.com'),
+      expect.any(Object)
+    );
+  });
+
   it('throws 502 when GitLab returns an error', async () => {
     fetch.mockResolvedValueOnce({
       json: async () => ({ error: 'invalid_grant', error_description: 'Code expired' }),
@@ -114,5 +141,19 @@ describe('revokeToken', () => {
     vi.resetModules();
     const { revokeToken } = await import('./oauth.js');
     await expect(revokeToken('gitlab', 'tok')).resolves.toBeUndefined();
+  });
+
+  it('uses gitlab.com default for revoke when GITLAB_BASE_URL not set', async () => {
+    fetch.mockResolvedValueOnce({ ok: true });
+    delete process.env.GITLAB_BASE_URL;
+    vi.stubEnv('GITLAB_CLIENT_ID', 'c');
+    vi.stubEnv('GITLAB_CLIENT_SECRET', 's');
+    vi.resetModules();
+    const { revokeToken } = await import('./oauth.js');
+    await expect(revokeToken('gitlab', 'tok')).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('gitlab.com'),
+      expect.any(Object)
+    );
   });
 });

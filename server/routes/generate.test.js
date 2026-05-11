@@ -23,13 +23,34 @@ describe('POST /api/generate', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 400 for projectName with uppercase', async () => {
+  it('normalizes projectName with uppercase and spaces', async () => {
     const { load } = await import('../services/assembler.js');
+    const { customiseStreaming } = await import('../services/llm.js');
     load.mockResolvedValue([]);
+    customiseStreaming.mockImplementation(async (_files, name, _desc, _res) => {
+      expect(name).toBe('my-app');
+      return [];
+    });
     const res = await request
       .post('/api/generate')
-      .send({ templateId: 't1', projectName: 'MyApp', description: 'desc' });
-    expect(res.status).toBe(400);
+      .send({ templateId: 't1', projectName: 'My App', description: 'desc' })
+      .buffer(true);
+    expect(res.status).toBe(200);
+  });
+
+  it('falls back to "project" when projectName normalizes to empty string', async () => {
+    const { load } = await import('../services/assembler.js');
+    const { customiseStreaming } = await import('../services/llm.js');
+    load.mockResolvedValue([]);
+    customiseStreaming.mockImplementation(async (_files, name, _desc, _res) => {
+      expect(name).toBe('project');
+      return [];
+    });
+    const res = await request
+      .post('/api/generate')
+      .send({ templateId: 't1', projectName: '---', description: 'desc' })
+      .buffer(true);
+    expect(res.status).toBe(200);
   });
 
   it('streams file_done and done events in bypass mode', async () => {
@@ -62,5 +83,52 @@ describe('POST /api/generate', () => {
       .post('/api/generate')
       .send({ templateId: 'big', projectName: 'my-app', description: 'd' });
     expect(res.status).toBe(422);
+  });
+
+  it('writes error event with "Invalid or missing API key" on 401 from LLM', async () => {
+    const { load } = await import('../services/assembler.js');
+    const { customiseStreaming } = await import('../services/llm.js');
+    load.mockResolvedValue([]);
+    const err = Object.assign(new Error('Unauthorized'), { status: 401 });
+    customiseStreaming.mockRejectedValue(err);
+
+    const res = await request
+      .post('/api/generate')
+      .send({ templateId: 't1', projectName: 'my-app', description: 'd' })
+      .buffer(true);
+
+    expect(res.text).toContain('"type":"error"');
+    expect(res.text).toContain('Invalid or missing API key');
+  });
+
+  it('writes error event with message on generic LLM error', async () => {
+    const { load } = await import('../services/assembler.js');
+    const { customiseStreaming } = await import('../services/llm.js');
+    load.mockResolvedValue([]);
+    customiseStreaming.mockRejectedValue(new Error('LLM unavailable'));
+
+    const res = await request
+      .post('/api/generate')
+      .send({ templateId: 't1', projectName: 'my-app', description: 'd' })
+      .buffer(true);
+
+    expect(res.text).toContain('"type":"error"');
+    expect(res.text).toContain('LLM unavailable');
+  });
+
+  it('falls back to "LLM error" when error has no message', async () => {
+    const { load } = await import('../services/assembler.js');
+    const { customiseStreaming } = await import('../services/llm.js');
+    load.mockResolvedValue([]);
+    // plain object with no message property → err.message is undefined → ?? 'LLM error'
+    customiseStreaming.mockRejectedValue({ status: 500 });
+
+    const res = await request
+      .post('/api/generate')
+      .send({ templateId: 't1', projectName: 'my-app', description: 'd' })
+      .buffer(true);
+
+    expect(res.text).toContain('"type":"error"');
+    expect(res.text).toContain('LLM error');
   });
 });

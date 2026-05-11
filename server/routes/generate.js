@@ -8,7 +8,8 @@ const router = Router();
 
 const generateSchema = z.object({
   templateId: z.string().min(1),
-  projectName: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
+  projectName: z.string().min(1).max(64)
+    .transform((v) => v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'project'),
   description: z.string().max(500).optional().default(''),
 });
 

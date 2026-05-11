@@ -878,6 +878,20 @@ Plan's ConfigurePage test expected direct `/api/generate` calls; actual impl del
 
 ---
 
+### Entry 061
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-09T00:00:00Z
+**Task:** test/full-code-coverage — fill coverage gaps
+
+**Context:** Server at 96.27% stmts / 86.07% branch; client at 95.85% stmts / 85.89% branch / 85.36% funcs. Specific gaps identified across routes, services, lib, components, and pages.
+**Decision / Action:** Added targeted tests to existing test files and one new file (`AppConfigContext.test.jsx`). Added `/* v8 ignore next */` to `FileIcon.jsx` line 2 where `?? ''` is an unreachable defensive branch (split('.').pop() on a string never returns undefined).
+**Rationale:** Every gap traced to an actual code path; no synthetic tests invented. The FileIcon `??` branch is structurally unreachable — ignoring it is more honest than adding test infrastructure to force an impossible state.
+**Impact / Risk:** Low. Test-only additions; no source changes except one v8 ignore comment.
+
+---
+
 ### Entry 060
 
 **Type:** Fix

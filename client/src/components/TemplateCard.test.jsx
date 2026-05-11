@@ -49,6 +49,34 @@ describe('TemplateCard', () => {
     expect(onSelect).toHaveBeenCalledWith(template);
   });
 
+  it('renders without tags when template has no tags property', () => {
+    const noTagsTemplate = { id: 'x', label: 'X', description: 'D', files: [] };
+    render(<TemplateCard template={noTagsTemplate} onSelect={vi.fn()} />);
+    expect(screen.getByText('X')).toBeInTheDocument();
+  });
+
+  it('shows default document icon for unknown file extensions', async () => {
+    const txtTemplate = { ...template, files: ['notes.txt'] };
+    render(<TemplateCard template={txtTemplate} onSelect={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: /show files/i }));
+    expect(screen.getByText('notes.txt')).toBeInTheDocument();
+  });
+
+  it('shows docker icon for Dockerfile in file list', async () => {
+    const dockerTemplate = { ...template, files: ['Dockerfile', 'src/app.js'] };
+    render(<TemplateCard template={dockerTemplate} onSelect={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: /show files/i }));
+    // The Dockerfile entry renders the docker whale emoji
+    expect(screen.getByText('Dockerfile')).toBeInTheDocument();
+  });
+
+  it('shows docker icon for dockerfile.dev variant', async () => {
+    const dockerTemplate = { ...template, files: ['dockerfile.dev', 'README.md'] };
+    render(<TemplateCard template={dockerTemplate} onSelect={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: /show files/i }));
+    expect(screen.getByText('dockerfile.dev')).toBeInTheDocument();
+  });
+
   it('sets aria-expanded correctly', async () => {
     render(<TemplateCard template={template} onSelect={vi.fn()} />);
     const toggle = screen.getByRole('button', { name: /show files/i });

@@ -10,7 +10,8 @@ const fileEntrySchema = z.object({ path: z.string(), content: z.string() });
 
 const zipSchema = z.object({
   fileTree: z.array(fileEntrySchema).min(1).max(100),
-  projectName: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/).optional(),
+  projectName: z.string().min(1).max(64).optional()
+    .transform((v) => v ? v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'project' : undefined),
 });
 
 router.post('/zip', async (req, res, next) => {

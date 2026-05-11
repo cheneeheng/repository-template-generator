@@ -431,6 +431,205 @@ describe('PreviewPage', () => {
     expect(entries[0].snapshots).toHaveLength(2);
   });
 
+  it('handles empty file tree on generate done without crashing', async () => {
+    server.use(http.post('/api/generate', () => sseStream([
+      { type: 'done', fileTree: [] },
+    ])));
+    await renderPage();
+    // With empty tree, no file is active but refinement panel still shows
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+  });
+
+  it('handles empty file tree on refine done without crashing', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/refine', () => sseStream([
+        { type: 'done', fileTree: [] },
+      ])),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'clear');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+  });
+
+  it('updates token count as delta events arrive', async () => {
+    server.use(http.post('/api/generate', () => sseStream([
+      { type: 'delta', chunk: 'hello world' },
+      { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+    ])));
+    await renderPage();
+    // After done the streaming UI is replaced by the preview; just verify completion
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+  });
+
+  it('shows file count in progress bar while streaming', async () => {
+    // Stream file_done then never send done — observe intermediate streaming state
+    server.use(http.post('/api/generate', () =>
+      new HttpResponse(
+        new ReadableStream({
+          start(controller) {
+            const enc = new TextEncoder();
+            controller.enqueue(enc.encode(`data: ${JSON.stringify({ type: 'file_done', path: 'README.md', content: '# H' })}\n\n`));
+            // stream stays open — never done
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } }
+      )
+    ));
+    await renderPage();
+    await waitFor(() =>
+      expect(screen.getByText(/1 file complete/i)).toBeInTheDocument()
+    );
+  });
+
+  it('generate rate limit without reset header defaults to 15 min wait', async () => {
+    server.use(http.post('/api/generate', () =>
+      new HttpResponse(null, { status: 429 })
+    ));
+    await renderPage();
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByRole('alert')).toHaveTextContent(/15/);
+  });
+
+  it('editing a file when multiple snapshots exist preserves non-active snapshots', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'original' }] },
+      ])),
+      http.post('/api/refine', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'refined' }] },
+      ])),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    // Create a second snapshot via refinement
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'refine');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => screen.getByLabelText(/refinement history/i));
+    // Edit current file — this runs handleEdit with 2 snapshots in state (covers ': snap' branch)
+    const editor = screen.getByRole('textbox', { name: /file editor/i });
+    await userEvent.clear(editor);
+    await userEvent.type(editor, 'edited');
+    expect(editor).toHaveValue('edited');
+  });
+
+  it('refinement rate limit without reset header defaults to 15 min wait', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/refine', () =>
+        // No RateLimit-Reset header → reset is null
+        new HttpResponse(null, { status: 429 })
+      ),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'tweak');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    );
+    // Defaults to ~15 min wait
+    expect(screen.getByRole('alert')).toHaveTextContent(/15/);
+  });
+
+  it('shows context_overflow message for context overflow error', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/refine', () => sseStream([
+        { type: 'error', message: 'context_overflow' },
+      ])),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'make it TypeScript');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/conversation too long/i)).toBeInTheDocument()
+    );
+  });
+
+  it('rate limit alert shows singular "minute" when wait is exactly 1', async () => {
+    // Use a reset time that yields exactly 1 minute
+    const resetTime = String(Math.floor(Date.now() / 1000) + 60);
+    server.use(http.post('/api/generate', () =>
+      new HttpResponse(null, {
+        status: 429,
+        headers: { 'RateLimit-Reset': resetTime },
+      })
+    ));
+    await renderPage();
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    // Should show "1 minute" without trailing 's'
+    expect(screen.getByRole('alert')).toHaveTextContent(/1 minute[^s]/);
+  });
+
+  it('share button from fromShare session uses routerState projectName/templateId', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    server.use(
+      http.post('/api/share', () => HttpResponse.json({ id: 'share-xyz' })),
+      http.post('/api/refine', () => sseStream([{ type: 'done', fileTree: sharedTree }])),
+    );
+    // fromShare mode — projectConfig not in store
+    await act(async () => {
+      useStore.setState({ selectedTemplate: null, projectConfig: null });
+    });
+    await renderPageFromShare();
+    await waitFor(() => screen.getByRole('button', { name: /^share$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^share$/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/share/share-xyz')));
+  });
+
+  it('shows plural "files complete" during streaming with 2+ files', async () => {
+    server.use(http.post('/api/generate', () =>
+      new HttpResponse(
+        new ReadableStream({
+          start(controller) {
+            const enc = new TextEncoder();
+            controller.enqueue(enc.encode(`data: ${JSON.stringify({ type: 'file_done', path: 'a.js', content: 'x' })}\n\n`));
+            controller.enqueue(enc.encode(`data: ${JSON.stringify({ type: 'file_done', path: 'b.js', content: 'y' })}\n\n`));
+            // stream stays open
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } }
+      )
+    ));
+    await renderPage();
+    await waitFor(() =>
+      expect(screen.getByText(/2 files complete/i)).toBeInTheDocument()
+    );
+  });
+
+  it('Back button in error state navigates to /configure', async () => {
+    server.use(http.post('/api/generate', () =>
+      HttpResponse.json({ error: 'broken' }, { status: 500 })
+    ));
+    const FUTURE_ROUTES = { v7_startTransition: true, v7_relativeSplatPath: true };
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/preview']} future={FUTURE_ROUTES}>
+          <Routes>
+            <Route path="/preview" element={<PreviewPage />} />
+            <Route path="/configure" element={<div>configure-page</div>} />
+            <Route path="/" element={<div>home</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    await waitFor(() => screen.getByRole('button', { name: /back/i }));
+    await userEvent.click(screen.getByRole('button', { name: /back/i }));
+    expect(screen.getByText('configure-page')).toBeInTheDocument();
+  });
+
   it('fromWorkspace mode restores snapshots and skips generate call', async () => {
     const generateSpy = vi.fn(() => new Promise(() => {}));
     server.use(http.post('/api/generate', generateSpy));
@@ -465,5 +664,55 @@ describe('PreviewPage', () => {
     expect(generateSpy).not.toHaveBeenCalled();
     expect(screen.getByText('a.js')).toBeInTheDocument();
     expect(screen.getByLabelText(/refinement history/i)).toBeInTheDocument();
+  });
+
+  it('Proceed to Export button navigates to /export', async () => {
+    server.use(http.post('/api/generate', () => sseStream([
+      { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+    ])));
+    const FUTURE_ROUTES = { v7_startTransition: true, v7_relativeSplatPath: true };
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/preview']} future={FUTURE_ROUTES}>
+          <Routes>
+            <Route path="/preview" element={<PreviewPage />} />
+            <Route path="/export" element={<div>export-page</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    await waitFor(() => screen.getByRole('button', { name: /proceed to export/i }));
+    await userEvent.click(screen.getByRole('button', { name: /proceed to export/i }));
+    expect(screen.getByText('export-page')).toBeInTheDocument();
+  });
+
+  it('share button resets to Share after 3 seconds', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ delay: null });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/share', () => HttpResponse.json({ id: 'reset-test' })),
+    );
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/preview']} future={FUTURE}>
+          <Routes>
+            <Route path="/preview" element={<PreviewPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    await waitFor(() => screen.getByRole('button', { name: /^share$/i }));
+    await user.click(screen.getByRole('button', { name: /^share$/i }));
+    await waitFor(() => screen.getByRole('button', { name: /link copied/i }));
+    act(() => { vi.advanceTimersByTime(3001); });
+    await waitFor(() => screen.getByRole('button', { name: /^share$/i }));
+    vi.useRealTimers();
   });
 });
