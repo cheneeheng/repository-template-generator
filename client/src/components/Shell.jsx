@@ -1,5 +1,5 @@
 import './Shell.css'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { DarkModeToggle } from './DarkModeToggle.jsx'
 import { loadWorkspace } from '../lib/workspace.js'
 
@@ -29,11 +29,14 @@ function StepBreadcrumb({ current }) {
 }
 
 export function Shell({ children, step }) {
+  const navigate = useNavigate()
   const workspaceCount = loadWorkspace().length
   return (
     <div className="shell">
       <header className="shell__nav">
-        <span className="shell__logo">Scaffold</span>
+        <button className="shell__home" onClick={() => navigate('/')} aria-label="Home">
+          ⌂ Home
+        </button>
         <StepBreadcrumb current={step} />
         <Link to="/workspace" style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', textDecoration: 'none' }}>
           Workspace{workspaceCount > 0 ? ` (${workspaceCount})` : ''}
