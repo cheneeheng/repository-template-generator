@@ -6,7 +6,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { VERSIONS } from '../server/prompts/registry.js';
 import { load as loadTemplateFiles } from '../server/services/assembler.js';
 
-const PROMPT_VERSION = process.env.PROMPT_VERSION ?? 'v1';
+// Use EVAL_PROMPT_VERSION to avoid conflicting with server/prompts/registry.js,
+// which also reads PROMPT_VERSION at module-init and would throw on 'v1'/'v2' values.
+const PROMPT_VERSION = process.env.EVAL_PROMPT_VERSION ?? 'v1';
 const promptConfig = VERSIONS[`customise-${PROMPT_VERSION}`];
 if (!promptConfig) {
   console.error(`Unknown prompt version: customise-${PROMPT_VERSION}`);
