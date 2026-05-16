@@ -1,0 +1,17 @@
+[project]
+name = "{{PROJECT_NAME}}"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.0",
+    "flask-sqlalchemy>=3.1",
+    "psycopg[binary]>=3.1",
+    "pydantic-settings>=2.2",
+    "gunicorn>=22.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-flask>=1.3",
+]

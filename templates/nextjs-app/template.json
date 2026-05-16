@@ -1,0 +1,6 @@
+{
+  "id": "nextjs-app",
+  "label": "Next.js App",
+  "description": "Full-stack Next.js 15 application using the App Router, TypeScript, and Tailwind CSS. Includes an API route for health checks, Vitest for unit tests, and a GitHub Actions CI workflow.",
+  "tags": ["typescript", "nextjs", "react", "tailwind", "vitest", "gh-actions"]
+}
