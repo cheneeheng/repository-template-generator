@@ -1,0 +1,6 @@
+{
+  "id": "ruby-rails-postgres",
+  "label": "Ruby on Rails + PostgreSQL",
+  "description": "Rails 7 API-mode application with PostgreSQL. Includes ActiveRecord models, RSpec request specs, Docker Compose for local dev, and a GitHub Actions CI workflow.",
+  "tags": ["ruby", "rails", "postgres", "rspec", "docker", "gh-actions"]
+}

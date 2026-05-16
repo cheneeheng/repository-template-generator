@@ -1,0 +1,6 @@
+{
+  "id": "trpc-nextjs",
+  "label": "tRPC + Next.js",
+  "description": "End-to-end type-safe full-stack app with tRPC, Next.js 15 App Router, and TypeScript. Includes React Query integration, Zod input validation, and a GitHub Actions CI workflow.",
+  "tags": ["typescript", "trpc", "nextjs", "react", "zod", "gh-actions"]
+}

@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: {{PROJECT_NAME}}_development
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db/{{PROJECT_NAME}}_development
+    depends_on:
+      - db
+
+volumes:
+  pg_data:

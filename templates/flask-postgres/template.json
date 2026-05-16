@@ -1,0 +1,6 @@
+{
+  "id": "flask-postgres",
+  "label": "Flask + PostgreSQL",
+  "description": "Flask REST API with Flask-SQLAlchemy and PostgreSQL, managed by uv. Includes blueprint-based routing, pytest-flask for testing, Docker Compose for local dev, and a GitHub Actions CI workflow.",
+  "tags": ["python", "flask", "postgres", "docker", "gh-actions", "sqlalchemy"]
+}

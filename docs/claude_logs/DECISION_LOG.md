@@ -922,6 +922,31 @@ Plan's ConfigurePage test expected direct `/api/generate` calls; actual impl del
 
 ---
 
+### Entry 064
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-16T00:00:00Z
+**Task:** Add 10 new templates to templates/
+
+**Context:** User requested 10 new templates without specifying stacks. Existing 10 templates: FastAPI, Flask, Django, Python CLI, Express/TS, NestJS, Next.js, SvelteKit, React+Express, Go stdlib. Needed to choose stacks that fill meaningful gaps.
+
+**Decision:** Selected to maximise language and use-case diversity:
+1. `rust-axum-api` — Rust with Axum (systems language gap)
+2. `elixir-phoenix` — Elixir/Phoenix (functional language gap)
+3. `ruby-rails-postgres` — Ruby on Rails (popular MVC framework gap)
+4. `hono-bun-api` — Hono + Bun (modern fast TS runtime gap)
+5. `trpc-nextjs` — tRPC + Next.js (type-safe full-stack pattern gap)
+6. `astro-blog` — Astro (content/static site gap)
+7. `python-worker` — ARQ + Redis async worker (background job gap)
+8. `grpc-go` — gRPC in Go (RPC protocol gap)
+9. `remix-postgres` — Remix + PostgreSQL (loader/action full-stack gap)
+10. `vue-express-postgres` — Vue 3 + Express + PostgreSQL (Vue ecosystem gap)
+
+**Impact / Risk:** Additive only; no existing templates modified. README.md updated.
+
+---
+
 ### Entry 063
 
 **Type:** Decision

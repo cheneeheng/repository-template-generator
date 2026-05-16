@@ -1,0 +1,29 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = "{{PROJECT_NAME}} — a blog built with Astro" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title} | {{PROJECT_NAME}}</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+      nav { margin-bottom: 2rem; }
+      nav a { margin-right: 1rem; }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog">Blog</a>
+    </nav>
+    <slot />
+  </body>
+</html>

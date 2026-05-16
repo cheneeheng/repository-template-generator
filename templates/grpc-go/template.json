@@ -1,0 +1,6 @@
+{
+  "id": "grpc-go",
+  "label": "gRPC Go Service",
+  "description": "Go gRPC service with protobuf definitions, server reflection, health checking, and a multi-stage Dockerfile. Includes a GitHub Actions CI workflow.",
+  "tags": ["go", "grpc", "protobuf", "docker", "gh-actions"]
+}

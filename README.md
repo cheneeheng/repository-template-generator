@@ -147,30 +147,10 @@ ANTHROPIC_API_KEY=<key> TEMPLATES_DIR=$(pwd)/templates npm run eval:v2
 
 `npm run eval:v2` sets `EVAL_PROMPT_VERSION=v2` internally via `cross-env`. Do not set `PROMPT_VERSION` directly — it conflicts with server-side registry initialisation.
 
-## Adding a template
+## Templates
 
-1. Create `templates/<your-template>/template.json`:
-
-```json
-{
-  "id": "your-template",
-  "label": "Human-readable name",
-  "description": "One sentence shown in the UI.",
-  "tags": ["tag1", "tag2"]
-}
-```
-
-2. Add the template files alongside `template.json`. Use `{{PROJECT_NAME}}` as a placeholder — the generator replaces it throughout.
+See [`templates/README.md`](templates/README.md) for the full list of available templates, the manifest schema, conventions, and instructions for adding a new template.
 
 ## Model
 
 Uses `claude-sonnet-4-6` via the Anthropic SDK. Swap the model string in `server/services/llm.js` to change it.
-
-## Available templates
-
-| ID | Stack |
-|----|-------|
-| `react-express-postgres` | React + Express + PostgreSQL + Docker Compose + GitHub Actions CI |
-| `fastapi-postgres` | FastAPI + PostgreSQL |
-| `python-cli` | Python CLI (Click / Typer) |
-| `ts-express-api` | TypeScript + Express REST API |

@@ -1,0 +1,6 @@
+{
+  "id": "go-http-api",
+  "label": "Go HTTP API",
+  "description": "Lightweight Go HTTP API using the standard library net/http with structured JSON logging via log/slog. Includes a Dockerfile with multi-stage builds and a GitHub Actions CI workflow.",
+  "tags": ["go", "docker", "gh-actions"]
+}

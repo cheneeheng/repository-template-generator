@@ -1,0 +1,6 @@
+{
+  "id": "sveltekit-app",
+  "label": "SvelteKit App",
+  "description": "Full-stack SvelteKit application with TypeScript and the Node adapter. Includes a server-side API health route, Vitest for unit tests, and a GitHub Actions CI workflow.",
+  "tags": ["typescript", "svelte", "sveltekit", "vitest", "gh-actions"]
+}

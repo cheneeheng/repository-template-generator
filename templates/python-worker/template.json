@@ -1,0 +1,6 @@
+{
+  "id": "python-worker",
+  "label": "Python Async Worker",
+  "description": "Python background job worker using ARQ and Redis. Includes typed task definitions, health-check HTTP endpoint, Docker Compose for local dev, and a GitHub Actions CI workflow.",
+  "tags": ["python", "arq", "redis", "worker", "docker", "gh-actions"]
+}

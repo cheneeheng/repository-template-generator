@@ -1,0 +1,6 @@
+{
+  "id": "django-postgres",
+  "label": "Django + PostgreSQL",
+  "description": "Django REST Framework API with PostgreSQL, managed by uv. Includes model serializers, a ViewSet router, pytest-django for testing, Docker Compose for local dev, and a GitHub Actions CI workflow.",
+  "tags": ["python", "django", "postgres", "docker", "gh-actions", "drf"]
+}

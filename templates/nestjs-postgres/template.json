@@ -1,0 +1,6 @@
+{
+  "id": "nestjs-postgres",
+  "label": "NestJS + PostgreSQL",
+  "description": "NestJS REST API with TypeORM and PostgreSQL. Includes decorator-based controllers, a service layer, entity definitions, Docker Compose for local dev, and a GitHub Actions CI workflow.",
+  "tags": ["typescript", "nestjs", "postgres", "typeorm", "docker", "gh-actions"]
+}

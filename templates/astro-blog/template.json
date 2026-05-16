@@ -1,0 +1,6 @@
+{
+  "id": "astro-blog",
+  "label": "Astro Blog",
+  "description": "Content-first blog site built with Astro, TypeScript, and the Content Collections API. Includes MDX support, RSS feed, sitemap generation, and a GitHub Actions CI workflow.",
+  "tags": ["typescript", "astro", "mdx", "static", "gh-actions"]
+}
