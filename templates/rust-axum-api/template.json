@@ -1,0 +1,6 @@
+{
+  "id": "rust-axum-api",
+  "label": "Rust Axum API",
+  "description": "Async Rust HTTP API with Axum, Tower middleware, and Serde for JSON serialization. Includes a health endpoint, multi-stage Dockerfile, and a GitHub Actions CI workflow.",
+  "tags": ["rust", "axum", "docker", "gh-actions"]
+}

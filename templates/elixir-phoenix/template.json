@@ -1,0 +1,6 @@
+{
+  "id": "elixir-phoenix",
+  "label": "Elixir Phoenix API",
+  "description": "Elixir Phoenix web API with Ecto and PostgreSQL. Includes JSON endpoints, ExUnit tests, Docker Compose for local dev, and a GitHub Actions CI workflow.",
+  "tags": ["elixir", "phoenix", "postgres", "ecto", "docker", "gh-actions"]
+}

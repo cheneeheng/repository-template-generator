@@ -1,0 +1,29 @@
+[project]
+name = "{{PROJECT_NAME}}"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "arq>=0.26",
+    "redis>=5.0",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "aiohttp>=3.9",
+]
+
+[project.scripts]
+worker = "{{PROJECT_NAME}}.main:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "fakeredis[aioredis]>=2.23",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src"]

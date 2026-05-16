@@ -1,0 +1,6 @@
+{
+  "id": "vue-express-postgres",
+  "label": "Vue 3 + Express + PostgreSQL",
+  "description": "Full-stack web app with a Vue 3 (Vite + Composition API) frontend, TypeScript Express REST API, and PostgreSQL. Includes Docker Compose for local dev and a GitHub Actions CI workflow.",
+  "tags": ["vue", "typescript", "express", "postgres", "docker", "gh-actions"]
+}

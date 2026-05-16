@@ -1,0 +1,6 @@
+{
+  "id": "hono-bun-api",
+  "label": "Hono + Bun API",
+  "description": "Lightweight TypeScript REST API using Hono on Bun runtime. Includes Zod validation, built-in test runner, a Dockerfile, and a GitHub Actions CI workflow.",
+  "tags": ["typescript", "hono", "bun", "zod", "docker", "gh-actions"]
+}

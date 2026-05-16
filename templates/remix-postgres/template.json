@@ -1,0 +1,6 @@
+{
+  "id": "remix-postgres",
+  "label": "Remix + PostgreSQL",
+  "description": "Full-stack Remix application with PostgreSQL via Drizzle ORM. Includes server-side loaders and actions, Vitest for testing, Docker Compose for local dev, and a GitHub Actions CI workflow.",
+  "tags": ["typescript", "remix", "postgres", "drizzle", "docker", "gh-actions"]
+}

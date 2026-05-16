@@ -140,3 +140,103 @@ Tags: `react` `express` `postgres` `docker` `gh-actions`
 Lightweight Go HTTP API using the standard library `net/http` with structured JSON logging via `log/slog`. Includes a Dockerfile with multi-stage builds and a GitHub Actions CI workflow.
 
 Tags: `go` `docker` `gh-actions`
+
+---
+
+### `rust-axum-api`
+
+**Rust Axum API**
+
+Async Rust HTTP API with Axum, Tower middleware, and Serde for JSON serialization. Includes a health endpoint, multi-stage Dockerfile, and a GitHub Actions CI workflow.
+
+Tags: `rust` `axum` `docker` `gh-actions`
+
+---
+
+### `elixir-phoenix`
+
+**Elixir Phoenix API**
+
+Elixir Phoenix web API with Ecto and PostgreSQL. Includes JSON endpoints, ExUnit tests, Docker Compose for local dev, and a GitHub Actions CI workflow.
+
+Tags: `elixir` `phoenix` `postgres` `ecto` `docker` `gh-actions`
+
+---
+
+### `ruby-rails-postgres`
+
+**Ruby on Rails + PostgreSQL**
+
+Rails 7 API-mode application with PostgreSQL. Includes ActiveRecord models, RSpec request specs, Docker Compose for local dev, and a GitHub Actions CI workflow.
+
+Tags: `ruby` `rails` `postgres` `rspec` `docker` `gh-actions`
+
+---
+
+### `hono-bun-api`
+
+**Hono + Bun API**
+
+Lightweight TypeScript REST API using Hono on Bun runtime. Includes Zod validation, built-in test runner, a Dockerfile, and a GitHub Actions CI workflow.
+
+Tags: `typescript` `hono` `bun` `zod` `docker` `gh-actions`
+
+---
+
+### `trpc-nextjs`
+
+**tRPC + Next.js**
+
+End-to-end type-safe full-stack app with tRPC, Next.js 15 App Router, and TypeScript. Includes React Query integration, Zod input validation, and a GitHub Actions CI workflow.
+
+Tags: `typescript` `trpc` `nextjs` `react` `zod` `gh-actions`
+
+---
+
+### `astro-blog`
+
+**Astro Blog**
+
+Content-first blog site built with Astro, TypeScript, and the Content Collections API. Includes MDX support, RSS feed, sitemap generation, and a GitHub Actions CI workflow.
+
+Tags: `typescript` `astro` `mdx` `static` `gh-actions`
+
+---
+
+### `python-worker`
+
+**Python Async Worker**
+
+Python background job worker using ARQ and Redis. Includes typed task definitions, health-check HTTP endpoint, Docker Compose for local dev, and a GitHub Actions CI workflow.
+
+Tags: `python` `arq` `redis` `worker` `docker` `gh-actions`
+
+---
+
+### `grpc-go`
+
+**gRPC Go Service**
+
+Go gRPC service with protobuf definitions, server reflection, health checking, and a multi-stage Dockerfile. Includes a GitHub Actions CI workflow.
+
+Tags: `go` `grpc` `protobuf` `docker` `gh-actions`
+
+---
+
+### `remix-postgres`
+
+**Remix + PostgreSQL**
+
+Full-stack Remix application with PostgreSQL via Drizzle ORM. Includes server-side loaders and actions, Vitest for testing, Docker Compose for local dev, and a GitHub Actions CI workflow.
+
+Tags: `typescript` `remix` `postgres` `drizzle` `docker` `gh-actions`
+
+---
+
+### `vue-express-postgres`
+
+**Vue 3 + Express + PostgreSQL**
+
+Full-stack web app with a Vue 3 (Vite + Composition API) frontend, TypeScript Express REST API, and PostgreSQL. Includes Docker Compose for local dev and a GitHub Actions CI workflow.
+
+Tags: `vue` `typescript` `express` `postgres` `docker` `gh-actions`
