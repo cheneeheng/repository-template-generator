@@ -1,0 +1,5 @@
+{
+  "templateId": "react-express-postgres",
+  "projectName": "my-app",
+  "description": "A basic React app with a counter component"
+}

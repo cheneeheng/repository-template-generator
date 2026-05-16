@@ -1,0 +1,7 @@
+{
+  "requiredFiles": ["README.md", "package.json", "src/app.ts", "src/index.ts"],
+  "requiredContent": {
+    "src/app.ts": ["/health"],
+    "package.json": ["\"express\""]
+  }
+}

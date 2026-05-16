@@ -1,0 +1,5 @@
+{
+  "templateId": "ts-express-api",
+  "projectName": "my-api",
+  "description": "A basic Express REST API with a health check endpoint"
+}

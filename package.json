@@ -4,9 +4,12 @@
     "test": "concurrently \"bun run test --prefix server\" \"bun run test --prefix client\"",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
-    "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build"
+    "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build",
+    "eval": "node scripts/eval.js",
+    "eval:v2": "cross-env EVAL_PROMPT_VERSION=v2 node scripts/eval.js"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0"
+    "concurrently": "^8.2.0",
+    "cross-env": "^10.1.0"
   }
 }

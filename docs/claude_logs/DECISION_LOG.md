@@ -904,3 +904,33 @@ Plan's ConfigurePage test expected direct `/api/generate` calls; actual impl del
 **Rationale:** Removing unused variables eliminates dead code and clarifies intent — the state is intentionally read-only after initialisation.
 **Impact / Risk:** None. No functional change.
 **Outcome:** Applied in `client/src/pages/PreviewPage.jsx`. All 122 tests pass.
+
+---
+
+### Entry 062
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-11T00:00:00Z
+**Task:** ITER_21 — fixture templateId adaptation
+
+**Context:** ITER_21 §04 fixture files specify `templateId: "react-starter"` and `templateId: "express-starter"`. These template IDs do not exist in the `templates/` directory. The actual available templates are `fastapi-postgres`, `python-cli`, `react-express-postgres`, and `ts-express-api`.
+**Decision / Action:** Used `react-express-postgres` for the `react-starter-basic` fixture and `ts-express-api` for the `express-api-basic` fixture. Adjusted golden file paths accordingly: React fixture uses `frontend/src/App.jsx`, `frontend/package.json` etc. (matching the subdirectory layout of `react-express-postgres`); Express fixture uses `src/app.ts`, `src/index.ts` (TypeScript, matching `ts-express-api`).
+**Rationale:** The plan was authored with hypothetical template names. Using the closest matching real templates preserves the intent of validating React-stack and Express-stack generation paths. The golden assertions remain valid structural checks against what the LLM will generate from those templates.
+**Impact / Risk:** Low. If new templates named `react-starter` or `express-starter` are added later, fixture inputs should be updated to use them.
+**Outcome:** Applied in `scripts/evals/fixtures/react-starter-basic/input.json`, `golden.json`, `express-api-basic/input.json`, `golden.json`.
+
+---
+
+### Entry 063
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-11T00:00:00Z
+**Task:** ITER_21 — eval:v2 script without cross-env
+
+**Context:** ITER_21 §04 specifies `"eval:v2": "cross-env PROMPT_VERSION=v2 node scripts/eval.js"`. `cross-env` is not installed as a dev dependency in the root `package.json`, and §03 explicitly states "No new npm dependencies." The dev environment is Linux (Ubuntu 24.04).
+**Decision / Action:** Used POSIX inline env var syntax: `"eval:v2": "PROMPT_VERSION=v2 node scripts/eval.js"` without adding `cross-env`.
+**Rationale:** §03 prohibits new npm dependencies. The POSIX syntax is fully compatible with the Linux dev environment and CI runners. If Windows support is needed in the future, `cross-env` can be added as a dev dependency at that time.
+**Impact / Risk:** Low. `npm run eval:v2` will not work on Windows cmd/PowerShell. Windows users should run `PROMPT_VERSION=v2 bun scripts/eval.js` from Git Bash or WSL, or add `cross-env` themselves.
+**Outcome:** Applied in root `package.json`.

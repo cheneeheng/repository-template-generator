@@ -122,6 +122,31 @@ bun run test              # run once
 bun run test:watch        # watch mode
 ```
 
+## Eval harness
+
+`scripts/eval.js` runs prompt regression checks against the real Anthropic API. It loads fixtures from `scripts/evals/fixtures/` (`react-starter-basic`, `express-api-basic`), sends each through the LLM, and asserts the output against a golden file. Exit code is 0 if all fixtures pass, 1 if any fail.
+
+> **Note:** The eval CLI has not been properly tested — no real Anthropic API key was available during development. Treat results as unverified until a full end-to-end run has been confirmed.
+
+### Required environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Required. Hits the live Anthropic API — no mock mode. |
+| `TEMPLATES_DIR` | Path to template definitions. Pass as an absolute path (e.g. `$(pwd)/templates`). |
+
+### Running
+
+```bash
+# Prompt version v1 (default)
+ANTHROPIC_API_KEY=<key> TEMPLATES_DIR=$(pwd)/templates npm run eval
+
+# Prompt version v2
+ANTHROPIC_API_KEY=<key> TEMPLATES_DIR=$(pwd)/templates npm run eval:v2
+```
+
+`npm run eval:v2` sets `EVAL_PROMPT_VERSION=v2` internally via `cross-env`. Do not set `PROMPT_VERSION` directly — it conflicts with server-side registry initialisation.
+
 ## Adding a template
 
 1. Create `templates/<your-template>/template.json`:
