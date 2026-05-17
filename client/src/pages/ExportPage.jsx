@@ -5,6 +5,12 @@ import { exportRepo } from '../api.js'
 import { ErrorToast } from '../components/ErrorToast.jsx'
 import './ExportPage.css'
 
+function providerLabel(p) {
+  if (p === 'gitlab') return 'GitLab'
+  if (p === 'github-app') return 'GitHub App'
+  return 'GitHub'
+}
+
 function DownloadZipButton({ fileTree, projectName, onError }) {
   const [loading, setLoading] = useState(false)
 
@@ -66,34 +72,18 @@ function ConnectButton({ provider, token, onDisconnect }) {
   )
 }
 
-function RepoCreationForm({ fileTree, projectConfig, token, onError, onAuthExpired }) {
+function RepoCreationForm({ projectConfig, onSubmit, repoUrl }) {
   const [owner, setOwner] = useState('')
   const [repoName, setRepoName] = useState('')
   const [isPrivate, setIsPrivate] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [repoUrl, setRepoUrl] = useState(null)
   const provider = projectConfig?.provider
 
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
     try {
-      const result = await exportRepo({
-        fileTree,
-        provider,
-        token,
-        owner,
-        repoName,
-        description: projectConfig?.description,
-        isPrivate,
-      })
-      setRepoUrl(result.repoUrl)
-    } catch (err) {
-      if (err.status === 401) {
-        onAuthExpired()
-      } else {
-        onError(err.message ?? 'Failed to create repository')
-      }
+      await onSubmit({ owner, repoName, isPrivate })
     } finally {
       setLoading(false)
     }
@@ -156,9 +146,19 @@ export default function ExportPage() {
   const projectConfig = useStore((s) => s.projectConfig)
   const [error, setError] = useState(null)
   const [showRepoForm, setShowRepoForm] = useState(false)
-  const [authState, setAuthState] = useState({ github: null, gitlab: null })
+  const [repoUrl, setRepoUrl] = useState(null)
+  const [providers, setProviders] = useState({ github: false, githubApp: false, gitlab: false })
+  // authState values are objects { token, refreshToken?, expiresAt? } or null
+  const [authState, setAuthState] = useState({ github: null, gitlab: null, 'github-app': null })
 
-  // Read token or error from URL fragment placed there by the OAuth callback redirect
+  useEffect(() => {
+    fetch('/api/auth/providers')
+      .then(r => r.json())
+      .then(data => setProviders(data))
+      .catch(() => {})
+  }, [])
+
+  // Read token or error from URL fragment placed there by the OAuth/App callback redirect
   useEffect(() => {
     const hash = new URLSearchParams(window.location.hash.slice(1))
     const errorMsg = hash.get('error')
@@ -171,8 +171,13 @@ export default function ExportPage() {
       return
     }
 
-    if (token && provider && ['github', 'gitlab'].includes(provider)) {
-      setAuthState((prev) => ({ ...prev, [provider]: token }))
+    if (token && provider) {
+      const entry = { token }
+      if (provider === 'gitlab') {
+        entry.refreshToken = hash.get('refreshToken')
+        entry.expiresAt = Number(hash.get('expiresAt'))
+      }
+      setAuthState((prev) => ({ ...prev, [provider]: entry }))
       window.history.replaceState(null, '', window.location.pathname)
     }
   }, [])
@@ -181,21 +186,76 @@ export default function ExportPage() {
 
   const provider = projectConfig?.provider
   const isZipOnly = !provider || provider === 'zip'
-  const token = isZipOnly ? null : authState[provider]
+  // Prefer github-app over github if both are connected
+  const activeProvider = !isZipOnly && authState['github-app']?.token ? 'github-app' : provider
+  const tokenEntry = isZipOnly ? null : authState[provider]
+  const token = tokenEntry?.token ?? null
+  const isConnected = !!token || !!authState['github-app']?.token
 
   function handleDisconnect() {
     /* v8 ignore next */
-    if (!token) return
+    if (!tokenEntry) return
     // Best-effort revocation — ignore errors
-    fetch(`/api/auth/${provider}/revoke?token=${encodeURIComponent(token)}`).catch(() => {})
+    fetch(`/api/auth/${provider}/revoke?token=${encodeURIComponent(tokenEntry.token)}`).catch(() => {})
     setAuthState((prev) => ({ ...prev, [provider]: null }))
     setShowRepoForm(false)
   }
 
-  function handleAuthExpired() {
-    setAuthState((prev) => ({ ...prev, [provider]: null }))
-    setShowRepoForm(false)
-    setError(`Session expired — reconnect ${provider === 'gitlab' ? 'GitLab' : 'GitHub'} to continue`)
+  async function handleRepoCreate({ owner, repoName, isPrivate }) {
+    const auth = authState[activeProvider]
+    try {
+      const result = await exportRepo({
+        fileTree,
+        provider: activeProvider,
+        token: auth?.token,
+        owner,
+        repoName,
+        description: projectConfig?.description,
+        isPrivate,
+      })
+      setRepoUrl(result.repoUrl)
+    } catch (err) {
+      if (err.status === 401 && activeProvider === 'gitlab' && auth?.refreshToken) {
+        try {
+          const refreshRes = await fetch('/api/auth/gitlab/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken: auth.refreshToken }),
+          })
+          if (refreshRes.ok) {
+            const newTokens = await refreshRes.json()
+            const newAuth = {
+              token: newTokens.accessToken,
+              refreshToken: newTokens.refreshToken,
+              expiresAt: newTokens.expiresAt,
+            }
+            setAuthState((prev) => ({ ...prev, gitlab: newAuth }))
+            try {
+              const retryResult = await exportRepo({
+                fileTree,
+                provider: activeProvider,
+                token: newAuth.token,
+                owner,
+                repoName,
+                description: projectConfig?.description,
+                isPrivate,
+              })
+              setRepoUrl(retryResult.repoUrl)
+            } catch (retryErr) {
+              setError(retryErr.message ?? 'Repo creation failed after token refresh')
+            }
+            return
+          }
+        } catch {}
+        // refresh failed — fall through to re-auth
+      }
+      if (err.status === 401) {
+        setAuthState((prev) => ({ ...prev, [activeProvider]: null }))
+        setError(`Session expired — reconnect ${providerLabel(activeProvider)} to continue`)
+        return
+      }
+      setError(err.message ?? 'Failed to create repository')
+    }
   }
 
   return (
@@ -206,7 +266,15 @@ export default function ExportPage() {
         {!isZipOnly && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <ConnectButton provider={provider} token={token} onDisconnect={handleDisconnect} />
-            {token && (
+            {providers.githubApp && provider === 'github' && !authState['github-app'] && (
+              <a href="/api/auth/github-app/install" style={{ textDecoration: 'none' }}>
+                <button style={{ padding: '0.5rem 1.5rem' }}>Connect via GitHub App</button>
+              </a>
+            )}
+            {authState['github-app'] && (
+              <span style={{ color: 'var(--color-success)', fontWeight: 500 }}>GitHub App connected ✓</span>
+            )}
+            {isConnected && (
               <button
                 onClick={() => setShowRepoForm((v) => !v)}
                 style={{ padding: '0.5rem 1.5rem' }}
@@ -217,13 +285,11 @@ export default function ExportPage() {
           </div>
         )}
       </div>
-      {!isZipOnly && showRepoForm && token && (
+      {!isZipOnly && showRepoForm && isConnected && (
         <RepoCreationForm
-          fileTree={fileTree}
           projectConfig={projectConfig}
-          token={token}
-          onError={setError}
-          onAuthExpired={handleAuthExpired}
+          onSubmit={handleRepoCreate}
+          repoUrl={repoUrl}
         />
       )}
       <ErrorToast message={error} onDismiss={() => setError(null)} />

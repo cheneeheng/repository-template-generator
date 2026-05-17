@@ -11,17 +11,16 @@ const shareSchema = z.object({
 
 const router = Router();
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { fileTree, projectName, templateId } = shareSchema.parse(req.body);
   const id = randomBytes(4).toString('hex');
-  saveShare(id, { fileTree, projectName, templateId });
+  await saveShare(id, { fileTree, projectName, templateId });
   res.json({ id });
 });
 
-router.get('/:id', (req, res) => {
-  const result = getShare(req.params.id);
+router.get('/:id', async (req, res) => {
+  const result = await getShare(req.params.id);
   if (result.status === 'not_found') return res.status(404).json({ error: 'not_found' });
-  if (result.status === 'expired') return res.status(410).json({ error: 'expired' });
   res.json(result.data);
 });
 

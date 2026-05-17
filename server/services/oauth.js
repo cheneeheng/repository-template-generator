@@ -54,7 +54,11 @@ export async function exchangeCodeForToken(provider, code) {
     });
     const data = await r.json();
     if (data.error) throw createError(502, `GitLab token exchange failed: ${data.error_description}`);
-    return data.access_token;
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: Date.now() + data.expires_in * 1000,
+    };
   }
 
   throw createError(400, `Unknown provider: ${provider}`);

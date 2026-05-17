@@ -1,17 +1,14 @@
-const store = new Map();
-const TTL_MS = 24 * 60 * 60 * 1000;
+import redis from '../lib/redis.js';
 
-export function saveShare(id, payload) {
-  store.set(id, { ...payload, expiresAt: Date.now() + TTL_MS });
+const TTL_SECONDS = 24 * 60 * 60;
+const KEY = (id) => `share:${id}`;
+
+export async function saveShare(id, payload) {
+  await redis.set(KEY(id), JSON.stringify(payload), 'EX', TTL_SECONDS);
 }
 
-export function getShare(id) {
-  const entry = store.get(id);
-  if (!entry) return { status: 'not_found' };
-  if (Date.now() > entry.expiresAt) {
-    store.delete(id);
-    return { status: 'expired' };
-  }
-  const { expiresAt, ...data } = entry;
-  return { status: 'ok', data };
+export async function getShare(id) {
+  const raw = await redis.get(KEY(id));
+  if (!raw) return { status: 'not_found' };
+  return { status: 'ok', data: JSON.parse(raw) };
 }

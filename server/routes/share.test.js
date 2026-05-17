@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import { createApp } from '../app.js';
 
@@ -8,6 +8,18 @@ vi.mock('../services/llm.js', () => ({
   refineStreaming: vi.fn(),
 }));
 
+vi.mock('../store/shareStore.js', () => {
+  const _store = new Map();
+  return {
+    saveShare: vi.fn(async (id, data) => { _store.set(id, data); }),
+    getShare: vi.fn(async (id) => {
+      const d = _store.get(id);
+      return d ? { status: 'ok', data: d } : { status: 'not_found' };
+    }),
+    _store,
+  };
+});
+
 const app = createApp();
 const request = supertest(app);
 
@@ -16,6 +28,12 @@ const validPayload = {
   projectName: 'my-app',
   templateId: 'node-express',
 };
+
+beforeEach(async () => {
+  const { _store } = await import('../store/shareStore.js');
+  _store.clear();
+  vi.clearAllMocks();
+});
 
 describe('POST /api/share', () => {
   it('returns an 8-char hex id', async () => {
@@ -46,20 +64,5 @@ describe('GET /api/share/:id', () => {
     const res = await request.get('/api/share/00000000');
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('not_found');
-  });
-
-  it('returns 410 for expired entry', async () => {
-    const post = await request.post('/api/share').send(validPayload);
-    const { id } = post.body;
-
-    const realNow = Date.now;
-    Date.now = () => realNow() + 25 * 60 * 60 * 1000;
-    try {
-      const res = await request.get(`/api/share/${id}`);
-      expect(res.status).toBe(410);
-      expect(res.body.error).toBe('expired');
-    } finally {
-      Date.now = realNow;
-    }
   });
 });

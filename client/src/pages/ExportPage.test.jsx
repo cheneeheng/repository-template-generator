@@ -181,9 +181,10 @@ describe('ExportPage', () => {
   });
 
   it('falls back to "Failed to export ZIP" when error has no message', async () => {
+    // Render first so the providers useEffect fetch completes before we spy on fetch
+    await renderPage();
     const noMsgErr = Object.assign(new Error(), { message: undefined });
     vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(noMsgErr);
-    await renderPage();
     await userEvent.click(screen.getByRole('button', { name: /download zip/i }));
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(/failed to export zip/i)
@@ -336,6 +337,107 @@ describe('ExportPage — OAuth provider flow', () => {
     await userEvent.click(screen.getByRole('button', { name: /disconnect/i }));
     await waitFor(() =>
       expect(screen.queryByText(/connected as github/i)).not.toBeInTheDocument()
+    );
+  });
+
+  it('fragment with provider=github sets authState as object with .token', async () => {
+    window.location.hash = '#token=gho_test&provider=github';
+    await renderPageWithProvider('github');
+    expect(screen.getByText(/connected as github/i)).toBeInTheDocument();
+  });
+
+  it('fragment with provider=github-app sets authState github-app with .token', async () => {
+    window.location.hash = '#token=ghs_install&provider=github-app';
+    await renderPageWithProvider('github');
+    await waitFor(() =>
+      expect(screen.getByText(/github app connected/i)).toBeInTheDocument()
+    );
+  });
+
+  it('fragment with provider=gitlab reads refreshToken and expiresAt', async () => {
+    window.location.hash = '#token=glpat_test&refreshToken=glrefresh&expiresAt=9999999999999&provider=gitlab';
+    await renderPageWithProvider('gitlab');
+    expect(screen.getByText(/connected as gitlab/i)).toBeInTheDocument();
+  });
+
+  it('shows GitHub App connect button when providers.githubApp is true', async () => {
+    server.use(
+      http.get('/api/auth/providers', () =>
+        HttpResponse.json({ github: true, githubApp: true, gitlab: false })
+      )
+    );
+    await renderPageWithProvider('github');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /connect via github app/i })).toBeInTheDocument()
+    );
+  });
+
+  it('GitHub App connect button navigates to /api/auth/github-app/install', async () => {
+    server.use(
+      http.get('/api/auth/providers', () =>
+        HttpResponse.json({ github: true, githubApp: true, gitlab: false })
+      )
+    );
+    await renderPageWithProvider('github');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /connect via github app/i })).toBeInTheDocument()
+    );
+    const link = screen.getByRole('link', { name: /connect via github app/i });
+    expect(link).toHaveAttribute('href', '/api/auth/github-app/install');
+  });
+
+  it('401 on repo creation with gitlab provider triggers refresh and retries', async () => {
+    let callCount = 0;
+    server.use(
+      http.post('/api/export/repo', () => {
+        callCount++;
+        if (callCount === 1) return new HttpResponse(null, { status: 401 });
+        return HttpResponse.json({ repoUrl: 'https://gitlab.com/user/repo' });
+      }),
+      http.post('/api/auth/gitlab/refresh', () =>
+        HttpResponse.json({ accessToken: 'new_token', refreshToken: 'new_refresh', expiresAt: 9999999999999 })
+      ),
+    );
+    window.location.hash = '#token=glpat_test&refreshToken=glrefresh&expiresAt=9999999999999&provider=gitlab';
+    await renderPageWithProvider('gitlab');
+    await userEvent.click(screen.getByRole('button', { name: /create repository/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /namespace/i }), 'mygroup');
+    await userEvent.type(screen.getByRole('textbox', { name: /repository name/i }), 'repo');
+    const buttons = screen.getAllByRole('button', { name: /create repository/i });
+    await userEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'https://gitlab.com/user/repo' })).toBeInTheDocument()
+    );
+  });
+
+  it('401 on repo creation with github provider goes straight to re-auth prompt', async () => {
+    server.use(http.post('/api/export/repo', () => new HttpResponse(null, { status: 401 })));
+    window.location.hash = '#token=gho_test&provider=github';
+    await renderPageWithProvider('github');
+    await userEvent.click(screen.getByRole('button', { name: /create repository/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /org \/ user/i }), 'org');
+    await userEvent.type(screen.getByRole('textbox', { name: /repository name/i }), 'repo');
+    const buttons = screen.getAllByRole('button', { name: /create repository/i });
+    await userEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/session expired/i)
+    );
+  });
+
+  it('refresh failure clears gitlab auth state and shows re-auth message', async () => {
+    server.use(
+      http.post('/api/export/repo', () => new HttpResponse(null, { status: 401 })),
+      http.post('/api/auth/gitlab/refresh', () => new HttpResponse(null, { status: 401 })),
+    );
+    window.location.hash = '#token=glpat_test&refreshToken=expired_refresh&expiresAt=9999999999999&provider=gitlab';
+    await renderPageWithProvider('gitlab');
+    await userEvent.click(screen.getByRole('button', { name: /create repository/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /namespace/i }), 'mygroup');
+    await userEvent.type(screen.getByRole('textbox', { name: /repository name/i }), 'repo');
+    const buttons = screen.getAllByRole('button', { name: /create repository/i });
+    await userEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/session expired/i)
     );
   });
 
