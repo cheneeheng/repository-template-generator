@@ -76,27 +76,33 @@ describe('exchangeCodeForToken', () => {
     await expect(exchangeCodeForToken('bitbucket', 'code')).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('returns access_token on success (GitLab)', async () => {
-    fetch.mockResolvedValueOnce({ json: async () => ({ access_token: 'glpat_test' }) });
+  it('returns accessToken, refreshToken, expiresAt on success (GitLab)', async () => {
+    fetch.mockResolvedValueOnce({
+      json: async () => ({ access_token: 'glpat_test', refresh_token: 'glrefresh', expires_in: 7200 }),
+    });
     vi.stubEnv('GITLAB_CLIENT_ID', 'gl_client');
     vi.stubEnv('GITLAB_CLIENT_SECRET', 'gl_secret');
     vi.stubEnv('GITLAB_REDIRECT_URI', 'http://localhost/gl-cb');
     vi.resetModules();
     const { exchangeCodeForToken } = await import('./oauth.js');
-    const token = await exchangeCodeForToken('gitlab', 'gl_code');
-    expect(token).toBe('glpat_test');
+    const result = await exchangeCodeForToken('gitlab', 'gl_code');
+    expect(result.accessToken).toBe('glpat_test');
+    expect(result.refreshToken).toBe('glrefresh');
+    expect(typeof result.expiresAt).toBe('number');
   });
 
   it('uses gitlab.com default when GITLAB_BASE_URL not set', async () => {
-    fetch.mockResolvedValueOnce({ json: async () => ({ access_token: 'glpat_default' }) });
+    fetch.mockResolvedValueOnce({
+      json: async () => ({ access_token: 'glpat_default', refresh_token: 'r', expires_in: 7200 }),
+    });
     delete process.env.GITLAB_BASE_URL;
     vi.stubEnv('GITLAB_CLIENT_ID', 'gl_client');
     vi.stubEnv('GITLAB_CLIENT_SECRET', 'gl_secret');
     vi.stubEnv('GITLAB_REDIRECT_URI', 'http://localhost/gl-cb');
     vi.resetModules();
     const { exchangeCodeForToken } = await import('./oauth.js');
-    const token = await exchangeCodeForToken('gitlab', 'gl_code');
-    expect(token).toBe('glpat_default');
+    const result = await exchangeCodeForToken('gitlab', 'gl_code');
+    expect(result.accessToken).toBe('glpat_default');
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('gitlab.com'),
       expect.any(Object)

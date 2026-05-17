@@ -715,4 +715,61 @@ describe('PreviewPage', () => {
     await waitFor(() => screen.getByRole('button', { name: /^share$/i }));
     vi.useRealTimers();
   });
+
+  it('turn counter is hidden before first refinement', async () => {
+    server.use(http.post('/api/generate', () => sseStream([
+      { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+    ])));
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    expect(screen.queryByText(/Turn \d/)).not.toBeInTheDocument();
+  });
+
+  it('turn counter shows Turn 1 after first refinement done', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/refine', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'y' }] },
+      ])),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'tweak');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => screen.getByText('Turn 1'));
+  });
+
+  it('turn counter shows Turn 2 after second refinement done', async () => {
+    server.use(
+      http.post('/api/generate', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'x' }] },
+      ])),
+      http.post('/api/refine', () => sseStream([
+        { type: 'done', fileTree: [{ path: 'a.js', content: 'y' }] },
+      ])),
+    );
+    await renderPage();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'first');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => screen.getByText('Turn 1'));
+
+    server.use(http.post('/api/refine', () => sseStream([
+      { type: 'done', fileTree: [{ path: 'a.js', content: 'z' }] },
+    ])));
+    await userEvent.type(screen.getByRole('textbox', { name: /refinement/i }), 'second');
+    await userEvent.click(screen.getByRole('button', { name: /^refine$/i }));
+    await waitFor(() => screen.getByText('Turn 2'));
+  });
+
+  it('fromShare session starts turn counter at 0 and shows no counter', async () => {
+    server.use(http.post('/api/refine', () => sseStream([
+      { type: 'done', fileTree: sharedTree },
+    ])));
+    await renderPageFromShare();
+    await waitFor(() => screen.getByRole('textbox', { name: /refinement/i }));
+    expect(screen.queryByText(/Turn \d/)).not.toBeInTheDocument();
+  });
 });

@@ -49,6 +49,7 @@ export default function PreviewPage() {
   )
   const [activeFilePath, setActiveFilePath] = useState(null)
   const [history, setHistory] = useState([])
+  const [refinementTurnCount, setRefinementTurnCount] = useState(0)
   const [sharing, setSharing] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -174,6 +175,7 @@ export default function PreviewPage() {
             ...prev,
             { role: 'assistant', content: JSON.stringify(updatedTree) },
           ])
+          setRefinementTurnCount(prev => prev + 1)
           storeSetFileTree(updatedTree)
           const newSnapshotIndex = snapshots.length
           const newSnapshot = {
@@ -349,6 +351,9 @@ export default function PreviewPage() {
             disabled={status === 'streaming' || !llmEnabled}
             disabledReason={!llmEnabled ? 'Refinement requires an Anthropic API key.' : undefined}
           />
+          {refinementTurnCount > 0 && (
+            <p className="refine__turn-count">Turn {refinementTurnCount}</p>
+          )}
           <RefinementHistory
             snapshots={snapshots}
             activeSnapshot={activeSnapshot}

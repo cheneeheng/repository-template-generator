@@ -9,8 +9,7 @@ export default function SharePage() {
   useEffect(() => {
     fetch(`/api/share/${id}`)
       .then(async (res) => {
-        if (res.status === 404) { setError('not_found'); return }
-        if (res.status === 410) { setError('expired'); return }
+        if (res.status === 404 || res.status === 410) { setError('not_found'); return }
         if (!res.ok) { setError('unknown'); return }
         const data = await res.json()
         navigate('/preview', {
@@ -24,16 +23,7 @@ export default function SharePage() {
   if (error === 'not_found') {
     return (
       <div>
-        <p>This link was not found.</p>
-        <button onClick={() => navigate('/')}>Start a new project</button>
-      </div>
-    )
-  }
-
-  if (error === 'expired') {
-    return (
-      <div>
-        <p>This link has expired (links last 24 hours).</p>
+        <p>This link was not found or has expired (links last 24 hours).</p>
         <button onClick={() => navigate('/')}>Start a new project</button>
       </div>
     )

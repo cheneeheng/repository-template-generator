@@ -49,17 +49,17 @@ describe('SharePage', () => {
     await waitFor(() => expect(screen.getByTestId('preview-page')).toBeInTheDocument());
   });
 
-  it('shows not-found message on 404', async () => {
+  it('shows not-found/expired message on 404', async () => {
     server.use(http.get('/api/share/:id', () => HttpResponse.json({ error: 'not_found' }, { status: 404 })));
     await renderShare();
-    await waitFor(() => expect(screen.getByText(/not found/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/not found or has expired/i)).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /start a new project/i })).toBeInTheDocument();
   });
 
-  it('shows expired message on 410', async () => {
+  it('shows not-found/expired message on 410', async () => {
     server.use(http.get('/api/share/:id', () => HttpResponse.json({ error: 'expired' }, { status: 410 })));
     await renderShare();
-    await waitFor(() => expect(screen.getByText(/expired/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/not found or has expired/i)).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /start a new project/i })).toBeInTheDocument();
   });
 
@@ -78,14 +78,6 @@ describe('SharePage', () => {
 
   it('generic error start-over button navigates home', async () => {
     server.use(http.get('/api/share/:id', () => HttpResponse.json({ error: 'server error' }, { status: 500 })));
-    await renderShare();
-    await waitFor(() => screen.getByRole('button', { name: /start a new project/i }));
-    await userEvent.click(screen.getByRole('button', { name: /start a new project/i }));
-    expect(screen.getByText('home')).toBeInTheDocument();
-  });
-
-  it('expired start-over button navigates home', async () => {
-    server.use(http.get('/api/share/:id', () => HttpResponse.json({ error: 'expired' }, { status: 410 })));
     await renderShare();
     await waitFor(() => screen.getByRole('button', { name: /start a new project/i }));
     await userEvent.click(screen.getByRole('button', { name: /start a new project/i }));

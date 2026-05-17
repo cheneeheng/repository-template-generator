@@ -3,6 +3,9 @@ import supertest from 'supertest';
 import { createApp } from '../app.js';
 
 vi.mock('../services/oauth.js');
+vi.mock('../services/githubApp.js', () => ({
+  getInstallationToken: vi.fn(),
+}));
 vi.mock('../services/llm.js', () => ({
   LLM_ENABLED: false,
   customiseStreaming: vi.fn(),

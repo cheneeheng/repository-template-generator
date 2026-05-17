@@ -1,4 +1,11 @@
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis-data:/data
+
   server:
     build:
       context: ./server
@@ -11,6 +18,9 @@ services:
     environment:
       TEMPLATES_DIR: /templates
       PORT: 3000
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - redis
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
       interval: 30s
@@ -26,3 +36,6 @@ services:
       - "5173:80"
     depends_on:
       - server
+
+volumes:
+  redis-data:
