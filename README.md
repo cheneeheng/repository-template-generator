@@ -5,9 +5,10 @@ Generate repository templates to bootstrap app development. Pick a template, des
 ## Architecture
 
 ```
-client/   React 18 + Vite + Zustand   — UI on :5173
-server/   Express + Anthropic SDK     — API on :3000
-templates/                            — template definitions (template.json per template)
+client/      React 18 + Vite + Zustand   — UI on :5173
+server/      Express + Anthropic SDK     — API on :3000
+templates/                               — template definitions (template.json per template)
+deployment/                              — Docker Compose files and deployment docs
 ```
 
 **API routes**
@@ -59,7 +60,7 @@ Open `http://localhost:5173`.
 
 ```bash
 cp server/.env.example server/.env   # then set ANTHROPIC_API_KEY
-docker compose up --build
+docker compose -f deployment/docker-compose.yml up --build
 ```
 
 The server is available on `:3000` and the client on `:5173` (served via nginx inside the client container on port 80, mapped to host 5173).
