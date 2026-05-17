@@ -9,7 +9,7 @@ export default function SharePage() {
   useEffect(() => {
     fetch(`/api/share/${id}`)
       .then(async (res) => {
-        if (res.status === 404 || res.status === 410) { setError('not_found'); return }
+        if (res.status === 404) { setError('not_found'); return }
         if (!res.ok) { setError('unknown'); return }
         const data = await res.json()
         navigate('/preview', {
