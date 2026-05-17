@@ -8,7 +8,7 @@
 4. Run:
 
    ```bash
-   docker compose up --build -d
+   docker compose -f deployment/docker-compose.yml up --build -d
    ```
 
 5. The app is available at `http://localhost:5173` (client) and `http://localhost:3000` (API).
@@ -16,7 +16,7 @@
 **Adding your own templates:** Mount a directory containing your template folders:
 
 ```yaml
-# docker-compose.yml override
+# deployment/docker-compose.yml override
 services:
   server:
     environment:
@@ -31,10 +31,10 @@ Requirements: Node.js 20+ and [bun](https://bun.sh)
 
 ```bash
 # Install root dev tools
-npm install
+bun install
 
 # Start both services
-npm run dev
+bun run dev
 ```
 
 Client runs on http://localhost:5173, server on http://localhost:3000.

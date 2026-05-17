@@ -959,3 +959,20 @@ Plan's ConfigurePage test expected direct `/api/generate` calls; actual impl del
 **Rationale:** §03 prohibits new npm dependencies. The POSIX syntax is fully compatible with the Linux dev environment and CI runners. If Windows support is needed in the future, `cross-env` can be added as a dev dependency at that time.
 **Impact / Risk:** Low. `npm run eval:v2` will not work on Windows cmd/PowerShell. Windows users should run `PROMPT_VERSION=v2 bun scripts/eval.js` from Git Bash or WSL, or add `cross-env` themselves.
 **Outcome:** Applied in root `package.json`.
+
+---
+
+### Entry 065
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-05-17T00:00:00Z
+**Task:** Refactor deployment files into deployment/ folder
+
+**Context:** Root contained `docker-compose.yml`, `docker-compose.dev.yml`, and `DEPLOYING.md` alongside application source. User requested these be consolidated into a `deployment/` folder. Decision required on whether to also move `client/Dockerfile`, `server/Dockerfile`, and `client/nginx.conf`.
+
+**Decision:** Moved only `docker-compose.yml`, `docker-compose.dev.yml`, and `DEPLOYING.md` to `deployment/`. Dockerfiles and `nginx.conf` remain in their respective service directories (`client/`, `server/`).
+
+**Rationale:** Docker Compose `build.context` points to `./client` and `./server` — these directories are the build contexts. Dockerfiles must reside within their build context for `COPY` instructions to resolve correctly. Moving them to `deployment/` while keeping `context: ../client` would require the `dockerfile:` path to point outside the build context, which Docker disallows. `nginx.conf` is copied via `COPY nginx.conf ...` relative to the `client/` build context, so it must stay there. Updated paths in compose files from `./server` → `../server`, `./client` → `../client`, `./templates` → `../templates`.
+
+**Impact / Risk:** Low. `package.json` scripts and `README.md` updated to reference new paths. Anyone running `docker compose up` directly must now use `-f deployment/docker-compose.yml`.
