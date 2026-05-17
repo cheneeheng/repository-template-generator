@@ -31,10 +31,10 @@ Requirements: Node.js 20+ and [bun](https://bun.sh)
 
 ```bash
 # Install root dev tools
-npm install
+bun install
 
 # Start both services
-npm run dev
+bun run dev
 ```
 
 Client runs on http://localhost:5173, server on http://localhost:3000.

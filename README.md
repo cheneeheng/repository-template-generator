@@ -140,13 +140,13 @@ bun run test:watch        # watch mode
 
 ```bash
 # Prompt version v1 (default)
-ANTHROPIC_API_KEY=<key> TEMPLATES_DIR=$(pwd)/templates npm run eval
+ANTHROPIC_API_KEY=<key> TEMPLATES_DIR=$(pwd)/templates bun run eval
 
 # Prompt version v2
-ANTHROPIC_API_KEY=<key> TEMPLATES_DIR=$(pwd)/templates npm run eval:v2
+ANTHROPIC_API_KEY=<key> TEMPLATES_DIR=$(pwd)/templates bun run eval:v2
 ```
 
-`npm run eval:v2` sets `EVAL_PROMPT_VERSION=v2` internally via `cross-env`. Do not set `PROMPT_VERSION` directly — it conflicts with server-side registry initialisation.
+`bun run eval:v2` sets `EVAL_PROMPT_VERSION=v2` internally. Do not set `PROMPT_VERSION` directly — it conflicts with server-side registry initialisation.
 
 ## Templates
 

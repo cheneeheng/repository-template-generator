@@ -5,11 +5,10 @@
     "docker:up": "docker compose -f deployment/docker-compose.yml up --build",
     "docker:down": "docker compose -f deployment/docker-compose.yml down",
     "docker:dev": "docker compose -f deployment/docker-compose.yml -f deployment/docker-compose.dev.yml up --build",
-    "eval": "node scripts/eval.js",
-    "eval:v2": "cross-env EVAL_PROMPT_VERSION=v2 node scripts/eval.js"
+    "eval": "bun scripts/eval.js",
+    "eval:v2": "EVAL_PROMPT_VERSION=v2 bun scripts/eval.js"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0",
-    "cross-env": "^10.1.0"
+    "concurrently": "^8.2.0"
   }
 }
